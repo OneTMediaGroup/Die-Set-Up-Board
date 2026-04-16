@@ -29,6 +29,11 @@ function bootstrapSession() {
   currentUserSupervisor.textContent = `${session.name} · ${session.role}`;
 }
 
+function getSlotsArray(press) {
+  if (Array.isArray(press.slots)) return press.slots;
+  return Object.values(press.slots || {});
+}
+
 function startPressWatcher() {
   unsubscribePresses = watchPressesFromFirestore((livePresses) => {
     presses = livePresses;
@@ -39,7 +44,7 @@ function startPressWatcher() {
 function render() {
   pressCount.textContent = String(presses.length);
   setupCount.textContent = String(
-    presses.flatMap((press) => press.slots).filter((slot) => slot.partNumber).length
+    presses.flatMap((press) => getSlotsArray(press)).filter((slot) => slot.partNumber).length
   );
 
   const currentSelectedPressId = pressSelect.value;
@@ -61,7 +66,7 @@ function render() {
         <span class="muted">${press.area} · Shift ${press.shift}</span>
       </header>
       <div class="queue-slots">
-        ${press.slots
+        ${getSlotsArray(press)
           .map(
             (slot, index) => `
           <div class="queue-slot">
@@ -123,7 +128,8 @@ function wireEvents() {
     const press = presses.find((item) => item.id === pressSelect.value);
     if (!press) return;
 
-    const slot = press.slots[Number(slotSelect.value)];
+    const slots = getSlotsArray(press);
+    const slot = slots[Number(slotSelect.value)];
     if (!slot) return;
 
     document.getElementById('partInput').value = slot.partNumber || '';
