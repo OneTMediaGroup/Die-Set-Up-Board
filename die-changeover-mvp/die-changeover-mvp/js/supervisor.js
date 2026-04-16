@@ -1,8 +1,7 @@
-import { initStore, getLogs, getSession, setSession, upsertSetup } from './store.js';
+import { initStore, getLogs, getSession, setSession } from './store.js';
 import { formatDateTime, statusLabel } from './utils.js';
 import { watchPressesFromFirestore } from './firestore-presses.js';
 import { updateSetupInFirestore } from './firestore-write.js';
-
 
 initStore();
 
@@ -21,7 +20,6 @@ let presses = [];
 let unsubscribePresses = null;
 
 bootstrapSession();
-render();
 wireEvents();
 startPressWatcher();
 
@@ -44,9 +42,15 @@ function render() {
     presses.flatMap((press) => press.slots).filter((slot) => slot.partNumber).length
   );
 
+  const currentSelectedPressId = pressSelect.value;
+
   pressSelect.innerHTML = presses
     .map((press) => `<option value="${press.id}">Press ${press.pressNumber}</option>`)
     .join('');
+
+  if (currentSelectedPressId && presses.some((press) => press.id === currentSelectedPressId)) {
+    pressSelect.value = currentSelectedPressId;
+  }
 
   supervisorBoard.innerHTML = presses
     .map(
@@ -91,24 +95,28 @@ function render() {
 }
 
 function wireEvents() {
-  setupForm.addEventListener('submit', (event) => {
+  setupForm.addEventListener('submit', async (event) => {
     event.preventDefault();
 
     const session = getSession() || { name: 'Supervisor Demo' };
 
-   updateSetupInFirestore({
-  pressId: pressSelect.value,
-  slotIndex: Number(slotSelect.value),
-  userName: session.name,
-  setup: {
-    partNumber: document.getElementById('partInput').value.trim(),
-    qtyRemaining: Number(document.getElementById('qtyInput').value),
-    status: 'not_running',
-    notes: document.getElementById('notesInput').value.trim()
-  }
-});
+    try {
+      await updateSetupInFirestore({
+        pressId: pressSelect.value,
+        slotIndex: Number(slotSelect.value),
+        userName: session.name,
+        setup: {
+          partNumber: document.getElementById('partInput').value.trim(),
+          qtyRemaining: Number(document.getElementById('qtyInput').value),
+          status: 'not_running',
+          notes: document.getElementById('notesInput').value.trim()
+        }
+      });
 
-setupForm.reset();
+      setupForm.reset();
+    } catch (error) {
+      console.error('❌ Supervisor submit failed:', error);
+    }
   });
 
   prefillBtn.addEventListener('click', () => {
