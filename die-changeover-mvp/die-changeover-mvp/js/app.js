@@ -1,6 +1,6 @@
 import { initStore, setSession, getSession } from './store.js';
 import { db } from "./firebase-config.js";
-import { collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { collection, addDoc, getDocs, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 initStore();
 
@@ -22,8 +22,20 @@ async function testWrite() {
 
 // run it once
 testWrite();
+function startRealtimeTest() {
+  const testCollection = collection(db, "test");
 
+  onSnapshot(testCollection, (snapshot) => {
+    console.log("🔄 Realtime update:");
+    snapshot.forEach((doc) => {
+      console.log(doc.id, "=>", doc.data());
+    });
+  }, (error) => {
+    console.error("❌ Realtime listener error:", error);
+  });
+}
 
+startRealtimeTest();
 async function testRead() {
   try {
     const querySnapshot = await getDocs(collection(db, "test"));
@@ -49,6 +61,6 @@ if (demoLoginBtn) {
     renderSession();
   });
 }
-testWrite();
-testRead();
+//testWrite();
+//testRead();
 renderSession();
