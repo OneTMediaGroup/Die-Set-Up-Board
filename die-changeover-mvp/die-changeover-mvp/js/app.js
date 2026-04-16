@@ -1,6 +1,7 @@
 import { initStore, setSession, getSession } from './store.js';
 import { db } from "./firebase-config.js";
 import { collection, addDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 initStore();
 
@@ -24,6 +25,20 @@ async function testWrite() {
 testWrite();
 
 
+async function testRead() {
+  try {
+    const querySnapshot = await getDocs(collection(db, "test"));
+
+    console.log("📦 Firestore data:");
+
+    querySnapshot.forEach((doc) => {
+      console.log(doc.id, "=>", doc.data());
+    });
+
+  } catch (e) {
+    console.error("❌ Error reading:", e);
+  }
+}
 function renderSession() {
   const session = getSession();
   sessionText.textContent = session ? `Current session: ${session.name} (${session.role})` : 'No active session yet';
@@ -35,5 +50,6 @@ if (demoLoginBtn) {
     renderSession();
   });
 }
-
+testWrite();
+testRead();
 renderSession();
