@@ -1,6 +1,3 @@
-// Add your Firebase config here when you are ready.
-// This file is intentionally safe for GitHub starter use.
-
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getFirestore } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
