@@ -1,6 +1,8 @@
 import { initStore, getLogs, getSession, setSession, upsertSetup } from './store.js';
 import { formatDateTime, statusLabel } from './utils.js';
 import { watchPressesFromFirestore } from './firestore-presses.js';
+import { updateSetupInFirestore } from './firestore-write.js';
+
 
 initStore();
 
@@ -94,20 +96,19 @@ function wireEvents() {
 
     const session = getSession() || { name: 'Supervisor Demo' };
 
-    upsertSetup({
-      pressId: pressSelect.value,
-      slotIndex: Number(slotSelect.value),
-      userName: session.name,
-      setup: {
-        partNumber: document.getElementById('partInput').value.trim(),
-        qtyRemaining: Number(document.getElementById('qtyInput').value),
-        status: 'not_running',
-        notes: document.getElementById('notesInput').value.trim()
-      }
-    });
+   updateSetupInFirestore({
+  pressId: pressSelect.value,
+  slotIndex: Number(slotSelect.value),
+  userName: session.name,
+  setup: {
+    partNumber: document.getElementById('partInput').value.trim(),
+    qtyRemaining: Number(document.getElementById('qtyInput').value),
+    status: 'not_running',
+    notes: document.getElementById('notesInput').value.trim()
+  }
+});
 
-    render();
-    setupForm.reset();
+setupForm.reset();
   });
 
   prefillBtn.addEventListener('click', () => {
