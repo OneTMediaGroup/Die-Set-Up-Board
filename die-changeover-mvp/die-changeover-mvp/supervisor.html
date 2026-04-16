@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Supervisor View</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand-logo large">MAGNA</div>
+      <nav>
+        <a class="nav-link" href="board.html">Die Setter Board</a>
+        <a class="nav-link active" href="supervisor.html">Supervisor</a>
+        <a class="nav-link" href="admin.html">Admin / Maintenance</a>
+        <a class="nav-link" href="index.html">Home</a>
+      </nav>
+      <div class="sidebar-footer">
+        <div id="currentUserSupervisor" class="user-pill">Supervisor Demo</div>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar">
+        <div>
+          <h1>Supervisor View</h1>
+          <p class="muted">Create, edit, and reorder die setups</p>
+        </div>
+        <div class="topbar-right">
+          <div class="header-stat"><span>Active Presses</span><strong id="pressCount">--</strong></div>
+          <div class="header-stat"><span>Open Setups</span><strong id="setupCount">--</strong></div>
+        </div>
+      </header>
+
+      <section class="grid-2">
+        <div class="card">
+          <h2>Add / Update Setup</h2>
+          <form id="setupForm" class="form-grid">
+            <label>
+              Press
+              <select id="pressSelect" required></select>
+            </label>
+            <label>
+              Slot
+              <select id="slotSelect" required>
+                <option value="0">Slot 1</option>
+                <option value="1">Slot 2</option>
+                <option value="2">Slot 3</option>
+                <option value="3">Slot 4</option>
+              </select>
+            </label>
+            <label>
+              Part Number
+              <input id="partInput" required placeholder="TT7896A" />
+            </label>
+            <label>
+              Qty Remaining
+              <input id="qtyInput" type="number" min="0" required placeholder="120" />
+            </label>
+            <label>
+              Area
+              <select id="areaSelect">
+                <option value="Arcur 1">Arcur 1</option>
+                <option value="Arcur 2">Arcur 2</option>
+              </select>
+            </label>
+            <label>
+              Shift
+              <select id="shiftSelect">
+                <option value="1">Shift 1</option>
+                <option value="2">Shift 2</option>
+                <option value="3">Shift 3</option>
+              </select>
+            </label>
+            <label class="full-span">
+              Notes
+              <textarea id="notesInput" rows="3" placeholder="Supervisor instructions, timing notes, issue details..."></textarea>
+            </label>
+            <div class="form-actions full-span">
+              <button type="submit" class="button primary">Save Setup</button>
+              <button type="button" id="prefillBtn" class="button">Load Selected Slot</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="card">
+          <h2>Activity Feed</h2>
+          <div id="activityFeed" class="history-list"></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="section-header">
+          <h2>Current Queue</h2>
+          <button class="button" id="refreshSupervisorBtn">Refresh</button>
+        </div>
+        <div id="supervisorBoard" class="supervisor-board"></div>
+      </section>
+    </main>
+  </div>
+
+  <script type="module" src="js/supervisor.js"></script>
+</body>
+</html>
