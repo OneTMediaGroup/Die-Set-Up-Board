@@ -56,8 +56,9 @@ export function saveStatuses(statuses) {
 }
 
 export function getLogs() {
-  return clone(JSON.parse(localStorage.getItem(KEYS.logs) || '[]'))).sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
-}
+  return clone(JSON.parse(localStorage.getItem(KEYS.logs) || '[]'))
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+} 
 
 export function appendLog(user, message) {
   const logs = getLogs();
