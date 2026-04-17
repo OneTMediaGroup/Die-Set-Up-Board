@@ -38,6 +38,7 @@ function startPressWatcher() {
   unsubscribePresses = watchPressesFromFirestore((livePresses) => {
     presses = livePresses;
     render();
+    autofillForm();
   });
 }
 
@@ -48,6 +49,7 @@ function render() {
   );
 
   const currentSelectedPressId = pressSelect.value;
+  const currentSelectedSlotIndex = slotSelect.value || '0';
 
   pressSelect.innerHTML = presses
     .map((press) => `<option value="${press.id}">Press ${press.pressNumber}</option>`)
@@ -56,6 +58,8 @@ function render() {
   if (currentSelectedPressId && presses.some((press) => press.id === currentSelectedPressId)) {
     pressSelect.value = currentSelectedPressId;
   }
+
+  slotSelect.value = currentSelectedSlotIndex;
 
   supervisorBoard.innerHTML = presses
     .map(
@@ -99,7 +103,23 @@ function render() {
     .join('');
 }
 
+function autofillForm() {
+  const press = presses.find((p) => p.id === pressSelect.value);
+  if (!press) return;
+
+  const slots = getSlotsArray(press);
+  const slot = slots[Number(slotSelect.value)];
+  if (!slot) return;
+
+  document.getElementById('partInput').value = slot.partNumber || '';
+  document.getElementById('qtyInput').value = slot.qtyRemaining || '';
+  document.getElementById('notesInput').value = slot.notes || '';
+}
+
 function wireEvents() {
+  pressSelect.addEventListener('change', autofillForm);
+  slotSelect.addEventListener('change', autofillForm);
+
   setupForm.addEventListener('submit', async (event) => {
     event.preventDefault();
 
@@ -118,24 +138,15 @@ function wireEvents() {
         }
       });
 
-      setupForm.reset();
+      autofillForm();
     } catch (error) {
       console.error('❌ Supervisor submit failed:', error);
     }
   });
 
-  prefillBtn.addEventListener('click', () => {
-    const press = presses.find((item) => item.id === pressSelect.value);
-    if (!press) return;
-
-    const slots = getSlotsArray(press);
-    const slot = slots[Number(slotSelect.value)];
-    if (!slot) return;
-
-    document.getElementById('partInput').value = slot.partNumber || '';
-    document.getElementById('qtyInput').value = slot.qtyRemaining || '';
-    document.getElementById('notesInput').value = slot.notes || '';
-  });
+  if (prefillBtn) {
+    prefillBtn.style.display = 'none';
+  }
 
   refreshSupervisorBtn.addEventListener('click', render);
 }
