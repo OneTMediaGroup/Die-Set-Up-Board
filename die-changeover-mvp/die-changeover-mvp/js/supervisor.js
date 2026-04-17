@@ -1,7 +1,8 @@
-import { initStore, getLogs, getSession, setSession } from './store.js';
+import { initStore, getSession, setSession } from './store.js';
 import { formatDateTime, statusLabel } from './utils.js';
 import { watchPressesFromFirestore } from './firestore-presses.js';
 import { updateSetupInFirestore } from './firestore-write.js';
+import { watchLogsFromFirestore } from './firestore-logs.js';
 
 initStore();
 
@@ -16,12 +17,18 @@ const activityFeed = document.getElementById('activityFeed');
 const supervisorBoard = document.getElementById('supervisorBoard');
 const refreshSupervisorBtn = document.getElementById('refreshSupervisorBtn');
 
+let logs = [];
+let unsubscribeLogs = null;
+
 let presses = [];
 let unsubscribePresses = null;
 
 bootstrapSession();
 wireEvents();
 startPressWatcher();
+startLogWatcher();
+
+
 
 function bootstrapSession() {
   const session = getSession() || { id: 'u2', name: 'Sully T.', role: 'supervisor' };
@@ -32,6 +39,13 @@ function bootstrapSession() {
 function getSlotsArray(press) {
   if (Array.isArray(press.slots)) return press.slots;
   return Object.values(press.slots || {});
+}
+
+function startLogWatcher() {
+  unsubscribeLogs = watchLogsFromFirestore((liveLogs) => {
+    logs = liveLogs;
+    render();
+  });
 }
 
 function startPressWatcher() {
@@ -90,7 +104,8 @@ function render() {
     .join('');
 
   activityFeed.innerHTML = getLogs()
-    .slice(0, 12)
+    .slice(activityFeed.innerHTML = logs
+  .slice(0, 12), 12)
     .map(
       (item) => `
     <div class="history-item">
@@ -154,5 +169,9 @@ function wireEvents() {
 window.addEventListener('beforeunload', () => {
   if (typeof unsubscribePresses === 'function') {
     unsubscribePresses();
+  }
+
+  if (typeof unsubscribeLogs === 'function') {
+    unsubscribeLogs();
   }
 });
