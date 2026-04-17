@@ -17,6 +17,7 @@ const dialogNotes = document.getElementById('dialogNotes');
 let selected = null;
 let presses = [];
 let unsubscribePresses = null;
+let isSubmitting = false;
 
 bootstrapSession();
 wireDialog();
@@ -33,10 +34,27 @@ function getSlotsArray(press) {
   return Object.values(press.slots || {});
 }
 
+function getSelectedPressAndSlot() {
+  if (!selected) return null;
+
+  const press = presses.find((item) => item.id === selected.pressId);
+  if (!press) return null;
+
+  const slots = getSlotsArray(press);
+  const slot = slots[selected.slotIndex];
+  if (!slot) return null;
+
+  return { press, slot };
+}
+
 function startPressWatcher() {
   unsubscribePresses = watchPressesFromFirestore((livePresses) => {
     presses = livePresses;
     renderBoard();
+
+    if (setupDialog.open && selected) {
+      refreshOpenDialog();
+    }
   });
 }
 
@@ -85,7 +103,7 @@ function renderSlot(press, slot, slotIndex) {
       <div class="slot-note">${slot.notes || 'No notes added.'}</div>
       <div class="slot-actions">
         <button class="button primary full" data-open-setup data-press-id="${press.id}" data-slot-index="${slotIndex}">
-          ${empty ? 'Add Setup Note' : 'Open Actions'}
+          ${empty ? 'View Notes' : 'Open Actions'}
         </button>
       </div>
       <div class="muted">Updated ${formatTime(slot.updatedAt)}</div>
@@ -102,6 +120,20 @@ function openSetup(pressId, slotIndex) {
   if (!slot) return;
 
   selected = { pressId, slotIndex, pressNumber: press.pressNumber };
+  fillDialog(press, slot, slotIndex);
+  setupDialog.showModal();
+}
+
+function refreshOpenDialog() {
+  const data = getSelectedPressAndSlot();
+  if (!data) return;
+
+  const { press, slot } = data;
+  fillDialog(press, slot, selected.slotIndex);
+}
+
+function fillDialog(press, slot, slotIndex) {
+  const empty = !slot.partNumber;
 
   document.getElementById('dialogTitle').textContent = `Press ${press.pressNumber} · Slot ${slotIndex + 1}`;
   document.getElementById('dialogSubtitle').textContent = `${press.area} · Shift ${press.shift}`;
@@ -110,7 +142,24 @@ function openSetup(pressId, slotIndex) {
   document.getElementById('dialogStatus').textContent = slot.partNumber ? statusLabel(slot.status) : 'No setup';
   document.getElementById('dialogUpdated').textContent = formatDateTime(slot.updatedAt);
   dialogNotes.value = slot.notes || '';
-  setupDialog.showModal();
+
+  updateDialogActionState(empty);
+}
+
+function updateDialogActionState(empty) {
+  document.querySelectorAll('[data-action]').forEach((button) => {
+    const action = button.dataset.action;
+    const isClear = action === 'clear';
+    const isNotesOnly = action === 'save_notes';
+
+    if (empty) {
+      button.disabled = !isNotesOnly;
+      button.title = isNotesOnly ? '' : 'Load a setup from the supervisor screen before changing status.';
+    } else {
+      button.disabled = false;
+      button.title = isClear ? 'This will remove the setup from this slot.' : '';
+    }
+  });
 }
 
 function wireDialog() {
@@ -131,20 +180,68 @@ function wireDialog() {
   areaFilterBoard.addEventListener('change', renderBoard);
   shiftFilterBoard.addEventListener('change', renderBoard);
   refreshBoardBtn.addEventListener('click', renderBoard);
+
+  setupDialog.addEventListener('close', () => {
+    selected = null;
+    isSubmitting = false;
+    setDialogBusyState(false);
+  });
+}
+
+function setDialogBusyState(isBusy) {
+  document.querySelectorAll('[data-action]').forEach((button) => {
+    button.disabled = isBusy || button.disabled;
+  });
+
+  if (dialogNotes) {
+    dialogNotes.disabled = isBusy;
+  }
 }
 
 async function handleDialogAction(action) {
-  if (!selected) return;
+  if (!selected || isSubmitting) return;
 
   const session = getSession() || { name: 'Demo User' };
-  const press = presses.find((item) => item.id === selected.pressId);
-  if (!press) return;
+  const data = getSelectedPressAndSlot();
+  if (!data) return;
 
-  const slots = getSlotsArray(press);
-  const existing = slots[selected.slotIndex];
-  if (!existing) return;
+  const { slot } = data;
+  const empty = !slot.partNumber;
+
+  if (empty && action !== 'save_notes') {
+    alert('This slot has no active setup yet. Use the supervisor screen to add one first.');
+    return;
+  }
+
+  if (action === 'clear') {
+    const confirmed = window.confirm(
+      `Clear setup for Press ${selected.pressNumber} Slot ${selected.slotIndex + 1}?\n\nThis removes the part number, quantity, status, and notes from this slot.`
+    );
+
+    if (!confirmed) return;
+  }
+
+  const actionLabels = {
+    running: 'mark this setup as Running',
+    change_in_progress: 'mark this setup as In Progress',
+    change_complete: 'mark this setup as Complete',
+    save_notes: 'save these notes',
+    clear: 'clear this setup'
+  };
+
+  const confirmationNeeded = action !== 'save_notes' && action !== 'clear';
+  if (confirmationNeeded) {
+    const confirmed = window.confirm(
+      `Confirm: ${actionLabels[action] || 'apply this action'} for Press ${selected.pressNumber} Slot ${selected.slotIndex + 1}?`
+    );
+
+    if (!confirmed) return;
+  }
 
   try {
+    isSubmitting = true;
+    setDialogBusyState(true);
+
     if (action === 'clear') {
       await updateSetupInFirestore({
         pressId: selected.pressId,
@@ -154,7 +251,7 @@ async function handleDialogAction(action) {
           partNumber: '',
           qtyRemaining: 0,
           status: 'not_running',
-          notes: dialogNotes.value.trim()
+          notes: ''
         }
       });
     } else {
@@ -163,9 +260,9 @@ async function handleDialogAction(action) {
         slotIndex: selected.slotIndex,
         userName: session.name,
         setup: {
-          partNumber: existing.partNumber,
-          qtyRemaining: existing.qtyRemaining,
-          status: action === 'save_notes' ? existing.status : action,
+          partNumber: slot.partNumber,
+          qtyRemaining: slot.qtyRemaining,
+          status: action === 'save_notes' ? slot.status : action,
           notes: dialogNotes.value.trim()
         }
       });
@@ -174,6 +271,10 @@ async function handleDialogAction(action) {
     setupDialog.close();
   } catch (error) {
     console.error('❌ Board action failed:', error);
+    alert('Update failed. Please try again.');
+  } finally {
+    isSubmitting = false;
+    setDialogBusyState(false);
   }
 }
 
