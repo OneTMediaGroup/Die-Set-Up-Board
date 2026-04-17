@@ -28,8 +28,6 @@ wireEvents();
 startPressWatcher();
 startLogWatcher();
 
-
-
 function bootstrapSession() {
   const session = getSession() || { id: 'u2', name: 'Sully T.', role: 'supervisor' };
   setSession(session);
@@ -103,9 +101,8 @@ function render() {
     )
     .join('');
 
-  activityFeed.innerHTML = getLogs()
-    .slice(activityFeed.innerHTML = logs
-  .slice(0, 12), 12)
+  activityFeed.innerHTML = logs
+    .slice(0, 12)
     .map(
       (item) => `
     <div class="history-item">
