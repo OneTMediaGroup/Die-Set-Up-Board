@@ -9,5 +9,14 @@ export function formatDateTime(isoString) {
 }
 
 export function statusLabel(status) {
-  return status.replaceAll('_', ' ');
+  const labels = {
+    not_running: 'Not Running',
+    running: 'Running',
+    change_in_progress: 'In Progress',
+    change_complete: 'Complete',
+    blocked: 'Blocked / Maintenance',
+    no_setup: 'No Setup'
+  };
+
+  return labels[status] || status;
 }
