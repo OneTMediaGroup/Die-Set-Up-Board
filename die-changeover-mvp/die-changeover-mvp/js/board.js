@@ -222,12 +222,13 @@ async function handleDialogAction(action) {
   }
 
   const actionLabels = {
-    running: 'mark this setup as Running',
-    change_in_progress: 'mark this setup as In Progress',
-    change_complete: 'mark this setup as Complete',
-    save_notes: 'save these notes',
-    clear: 'clear this setup'
-  };
+  running: 'mark this setup as Running',
+  change_in_progress: 'mark this setup as In Progress',
+  change_complete: 'mark this setup as Complete',
+  blocked: 'flag this setup for Maintenance',
+  save_notes: 'save these notes',
+  clear: 'clear this setup'
+};
 
   const confirmationNeeded = action !== 'save_notes' && action !== 'clear';
   if (confirmationNeeded) {
