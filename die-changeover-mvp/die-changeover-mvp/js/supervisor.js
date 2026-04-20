@@ -89,6 +89,7 @@ function render() {
             <div>
               <strong>Slot ${index + 1}</strong>
               <div class="muted">${slot.partNumber || 'No setup'} · ${slot.partNumber ? slot.qtyRemaining : '—'}</div>
+              <div class="muted small">Last updated by: ${slot.lastUpdatedBy || press.lastUpdatedBy || '—'}</div>
             </div>
             <span class="status-pill ${slot.partNumber ? slot.status : 'no_setup'}">${slot.partNumber ? statusLabel(slot.status) : 'No Setup'}</span>
           </div>
@@ -128,6 +129,29 @@ function autofillForm() {
   document.getElementById('notesInput').value = slot.notes || '';
 }
 
+function validateSetupForm() {
+  const partNumber = document.getElementById('partInput').value.trim();
+  const qtyValue = Number(document.getElementById('qtyInput').value);
+
+  if (!partNumber) {
+    alert('Part number is required.');
+    document.getElementById('partInput').focus();
+    return null;
+  }
+
+  if (!Number.isFinite(qtyValue) || qtyValue <= 0) {
+    alert('Quantity must be greater than 0.');
+    document.getElementById('qtyInput').focus();
+    return null;
+  }
+
+  return {
+    partNumber,
+    qtyRemaining: qtyValue,
+    notes: document.getElementById('notesInput').value.trim()
+  };
+}
+
 function wireEvents() {
   pressSelect.addEventListener('change', autofillForm);
   slotSelect.addEventListener('change', autofillForm);
@@ -136,6 +160,8 @@ function wireEvents() {
     event.preventDefault();
 
     const session = getSession() || { name: 'Supervisor Demo' };
+    const validated = validateSetupForm();
+    if (!validated) return;
 
     try {
       await updateSetupInFirestore({
@@ -143,10 +169,10 @@ function wireEvents() {
         slotIndex: Number(slotSelect.value),
         userName: session.name,
         setup: {
-          partNumber: document.getElementById('partInput').value.trim(),
-          qtyRemaining: Number(document.getElementById('qtyInput').value),
+          partNumber: validated.partNumber,
+          qtyRemaining: validated.qtyRemaining,
           status: 'not_running',
-          notes: document.getElementById('notesInput').value.trim()
+          notes: validated.notes
         }
       });
 
