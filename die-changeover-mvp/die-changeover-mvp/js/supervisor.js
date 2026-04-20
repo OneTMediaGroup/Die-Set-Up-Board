@@ -39,6 +39,16 @@ function getSlotsArray(press) {
   return Object.values(press.slots || {});
 }
 
+function getOrderedPressesForDisplay() {
+  const selectedPressId = pressSelect.value;
+  if (!selectedPressId) return presses;
+
+  const selectedPress = presses.find((press) => press.id === selectedPressId);
+  const otherPresses = presses.filter((press) => press.id !== selectedPressId);
+
+  return selectedPress ? [selectedPress, ...otherPresses] : presses;
+}
+
 function startLogWatcher() {
   unsubscribeLogs = watchLogsFromFirestore((liveLogs) => {
     logs = liveLogs;
@@ -60,7 +70,7 @@ function render() {
     presses.flatMap((press) => getSlotsArray(press)).filter((slot) => slot.partNumber).length
   );
 
-  const currentSelectedPressId = pressSelect.value;
+  const currentSelectedPressId = pressSelect.value || presses[0]?.id || '';
   const currentSelectedSlotIndex = slotSelect.value || '0';
 
   pressSelect.innerHTML = presses
@@ -73,33 +83,45 @@ function render() {
 
   slotSelect.value = currentSelectedSlotIndex;
 
-  supervisorBoard.innerHTML = presses
-    .map(
-      (press) => `
-    <article class="queue-card">
-      <header>
-        <strong>Press ${press.pressNumber}</strong>
-        <span class="muted">${press.area} · Shift ${press.shift}</span>
-      </header>
-      <div class="queue-slots">
-        ${getSlotsArray(press)
-          .map(
-            (slot, index) => `
-          <div class="queue-slot">
+  const orderedPresses = getOrderedPressesForDisplay();
+  const selectedPressId = pressSelect.value;
+
+  supervisorBoard.innerHTML = orderedPresses
+    .map((press) => {
+      const isSelected = press.id === selectedPressId;
+      const selectedClass = isSelected ? ' selected-press-card' : '';
+      const selectedBadge = isSelected ? '<span class="status-pill running">Selected</span>' : '';
+
+      return `
+        <article class="queue-card${selectedClass}" data-press-card="${press.id}">
+          <header>
             <div>
-              <strong>Slot ${index + 1}</strong>
-              <div class="muted">${slot.partNumber || 'No setup'} · ${slot.partNumber ? slot.qtyRemaining : '—'}</div>
-              <div class="muted small">Last updated by: ${slot.lastUpdatedBy || press.lastUpdatedBy || '—'}</div>
+              <strong>Press ${press.pressNumber}</strong>
+              <span class="muted">${press.area} · Shift ${press.shift}</span>
             </div>
-            <span class="status-pill ${slot.partNumber ? slot.status : 'no_setup'}">${slot.partNumber ? statusLabel(slot.status) : 'No Setup'}</span>
+            <div style="display:flex; gap:8px; align-items:center;">
+              ${selectedBadge}
+            </div>
+          </header>
+          <div class="queue-slots">
+            ${getSlotsArray(press)
+              .map(
+                (slot, index) => `
+              <div class="queue-slot">
+                <div>
+                  <strong>Slot ${index + 1}</strong>
+                  <div class="muted">${slot.partNumber || 'No setup'} · ${slot.partNumber ? slot.qtyRemaining : '—'}</div>
+                  <div class="muted small">Last updated by: ${slot.lastUpdatedBy || press.lastUpdatedBy || '—'}</div>
+                </div>
+                <span class="status-pill ${slot.partNumber ? slot.status : 'no_setup'}">${slot.partNumber ? statusLabel(slot.status) : 'No Setup'}</span>
+              </div>
+            `
+              )
+              .join('')}
           </div>
-        `
-          )
-          .join('')}
-      </div>
-    </article>
-  `
-    )
+        </article>
+      `;
+    })
     .join('');
 
   activityFeed.innerHTML = logs
@@ -114,6 +136,25 @@ function render() {
   `
     )
     .join('');
+
+  applySelectedPressStyles();
+}
+
+function applySelectedPressStyles() {
+  supervisorBoard.querySelectorAll('[data-press-card]').forEach((card) => {
+    card.style.borderWidth = '1px';
+    card.style.borderStyle = 'solid';
+    card.style.borderColor = 'rgba(255,255,255,0.08)';
+    card.style.boxShadow = 'none';
+  });
+
+  const selectedCard = supervisorBoard.querySelector(`[data-press-card="${pressSelect.value}"]`);
+  if (!selectedCard) return;
+
+  selectedCard.style.borderWidth = '2px';
+  selectedCard.style.borderStyle = 'solid';
+  selectedCard.style.borderColor = 'rgba(255,255,255,0.35)';
+  selectedCard.style.boxShadow = '0 0 0 2px rgba(255,255,255,0.06)';
 }
 
 function autofillForm() {
@@ -153,7 +194,11 @@ function validateSetupForm() {
 }
 
 function wireEvents() {
-  pressSelect.addEventListener('change', autofillForm);
+  pressSelect.addEventListener('change', () => {
+    autofillForm();
+    render();
+  });
+
   slotSelect.addEventListener('change', autofillForm);
 
   setupForm.addEventListener('submit', async (event) => {
