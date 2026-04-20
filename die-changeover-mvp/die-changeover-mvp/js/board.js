@@ -281,7 +281,8 @@ async function handleDialogAction(action) {
           partNumber: '',
           qtyRemaining: 0,
           status: 'not_running',
-          notes: ''
+          notes: '',
+          previousSetup: slot
         }
       });
     } else {
@@ -293,7 +294,8 @@ async function handleDialogAction(action) {
           partNumber: slot.partNumber,
           qtyRemaining: slot.qtyRemaining,
           status: action === 'save_notes' ? slot.status : action,
-          notes: dialogNotes.value.trim()
+          notes: dialogNotes.value.trim(),
+          previousSetup: slot
         }
       });
     }
