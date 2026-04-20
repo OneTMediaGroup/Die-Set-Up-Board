@@ -311,3 +311,40 @@ input, textarea, select {
   .toolbar-row, .form-grid, .info-grid { grid-template-columns: 1fr; }
   .topbar { flex-direction: column; }
 }
+
+/* Supervisor queue should read like a planning board, not squeeze like tiny tiles */
+#supervisorBoard {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+#supervisorBoard .press-row {
+  width: 100%;
+}
+
+#supervisorBoard .slot-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(260px, 1fr));
+  gap: 12px;
+  align-items: stretch;
+}
+
+#supervisorBoard .slot-card {
+  min-width: 0;
+}
+
+#supervisorBoard .slot-note {
+  min-height: 44px;
+}
+
+#supervisorBoard .meta-box strong,
+#supervisorBoard .slot-header h4 {
+  word-break: break-word;
+}
+
+@media (max-width: 1100px) {
+  #supervisorBoard .slot-grid {
+    grid-template-columns: 1fr;
+  }
+}
