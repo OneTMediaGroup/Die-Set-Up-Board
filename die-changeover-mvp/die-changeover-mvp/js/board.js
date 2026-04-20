@@ -101,6 +101,7 @@ function renderSlot(press, slot, slotIndex) {
         <div class="meta-box"><span>Qty</span><strong>${slot.partNumber ? slot.qtyRemaining : '—'}</strong></div>
       </div>
       <div class="slot-note">${slot.notes || 'No notes added.'}</div>
+      <div class="muted">Last updated by ${slot.lastUpdatedBy || press.lastUpdatedBy || '—'}</div>
       <div class="slot-actions">
         <button class="button primary full" data-open-setup data-press-id="${press.id}" data-slot-index="${slotIndex}">
           ${empty ? 'View Notes' : 'Open Actions'}
