@@ -14,10 +14,72 @@ function statusLabel(status) {
   return labels[status] || status;
 }
 
+function buildLogMessage({ pressId, slotIndex, setup, previousSetup }) {
+  const pressCode = pressId.toUpperCase();
+  const slotText = `Slot ${slotIndex + 1}`;
+  const hasPart = Boolean(setup.partNumber);
+  const previousStatus = previousSetup?.status || 'not_running';
+  const newStatus = setup.status || 'not_running';
+
+  if (!hasPart) {
+    return `Cleared ${pressCode} ${slotText}`;
+  }
+
+  if (!previousSetup?.partNumber) {
+    return `Loaded ${pressCode} ${slotText} · ${setup.partNumber} · Qty ${setup.qtyRemaining}`;
+  }
+
+  if (previousStatus !== newStatus) {
+    if (newStatus === 'blocked') {
+      return `Blocked ${pressCode} ${slotText} · ${setup.partNumber} · ${setup.notes || 'No reason added'}`;
+    }
+
+    if (newStatus === 'change_complete') {
+      return `Completed ${pressCode} ${slotText} · ${setup.partNumber}`;
+    }
+
+    if (newStatus === 'change_in_progress') {
+      return `Started change ${pressCode} ${slotText} · ${setup.partNumber}`;
+    }
+
+    if (newStatus === 'running') {
+      return `Running ${pressCode} ${slotText} · ${setup.partNumber}`;
+    }
+
+    return `Updated status ${pressCode} ${slotText} · ${setup.partNumber} · ${statusLabel(newStatus)}`;
+  }
+
+  const qtyChanged = Number(previousSetup?.qtyRemaining || 0) !== Number(setup.qtyRemaining || 0);
+  const notesChanged = (previousSetup?.notes || '') !== (setup.notes || '');
+  const partChanged = (previousSetup?.partNumber || '') !== (setup.partNumber || '');
+
+  if (partChanged) {
+    return `Changed setup ${pressCode} ${slotText} · ${previousSetup?.partNumber || '—'} → ${setup.partNumber}`;
+  }
+
+  if (qtyChanged && notesChanged) {
+    return `Updated ${pressCode} ${slotText} · ${setup.partNumber} · Qty ${setup.qtyRemaining} + notes`;
+  }
+
+  if (qtyChanged) {
+    return `Updated qty ${pressCode} ${slotText} · ${setup.partNumber} · Qty ${setup.qtyRemaining}`;
+  }
+
+  if (notesChanged) {
+    return `Updated notes ${pressCode} ${slotText} · ${setup.partNumber}`;
+  }
+
+  return `Updated ${pressCode} ${slotText} · ${setup.partNumber} · ${statusLabel(newStatus)}`;
+}
+
 export async function updateSetupInFirestore({ pressId, slotIndex, setup, userName }) {
   const ref = doc(db, 'presses', pressId);
-
   const now = new Date().toISOString();
+
+  // Read current in-memory state from the page if available via Firestore listener write pattern is not available here,
+  // so we store a minimal previous snapshot from the setup payload caller when possible.
+  // Since callers currently do not pass previous state, we will infer best-effort messages from status + payload.
+  const previousSetup = setup.previousSetup || null;
 
   const updatePayload = {
     [`slots.${slotIndex}.partNumber`]: setup.partNumber,
@@ -32,9 +94,12 @@ export async function updateSetupInFirestore({ pressId, slotIndex, setup, userNa
 
   await updateDoc(ref, updatePayload);
 
-  const message = setup.partNumber
-    ? `Updated ${pressId.toUpperCase()} Slot ${slotIndex + 1} · ${setup.partNumber} · ${statusLabel(setup.status)}`
-    : `Cleared ${pressId.toUpperCase()} Slot ${slotIndex + 1}`;
+  const message = buildLogMessage({
+    pressId,
+    slotIndex,
+    setup,
+    previousSetup
+  });
 
   await addLogToFirestore({
     user: userName,
