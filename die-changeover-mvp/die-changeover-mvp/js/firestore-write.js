@@ -17,13 +17,16 @@ function statusLabel(status) {
 export async function updateSetupInFirestore({ pressId, slotIndex, setup, userName }) {
   const ref = doc(db, 'presses', pressId);
 
+  const now = new Date().toISOString();
+
   const updatePayload = {
     [`slots.${slotIndex}.partNumber`]: setup.partNumber,
     [`slots.${slotIndex}.qtyRemaining`]: setup.qtyRemaining,
     [`slots.${slotIndex}.status`]: setup.status,
     [`slots.${slotIndex}.notes`]: setup.notes,
-    [`slots.${slotIndex}.updatedAt`]: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    [`slots.${slotIndex}.updatedAt`]: now,
+    [`slots.${slotIndex}.lastUpdatedBy`]: userName,
+    updatedAt: now,
     lastUpdatedBy: userName
   };
 
