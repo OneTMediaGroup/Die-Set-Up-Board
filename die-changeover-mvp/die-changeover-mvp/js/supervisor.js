@@ -89,14 +89,15 @@ function render() {
   `
     )
     .join('');
+
+  wireQueueSlotClicks();
 }
 
 function renderPressRow(press) {
   const slots = getSlotsArray(press);
-  const isSelected = press.id === pressSelect.value;
 
   return `
-    <article class="press-row" style="${isSelected ? 'border:2px solid rgba(255,255,255,0.22); box-shadow:0 0 0 2px rgba(255,255,255,0.04);' : ''}">
+    <article class="press-row">
       <div class="press-row-header">
         <div>
           <h3>Press ${press.pressNumber}</h3>
@@ -115,9 +116,15 @@ function renderPressRow(press) {
 function renderSupervisorSlot(press, slot, slotIndex) {
   const empty = !slot.partNumber;
   const displayStatus = empty ? 'no_setup' : slot.status;
+  const isSelected = press.id === pressSelect.value && String(slotIndex) === String(slotSelect.value);
 
   return `
-    <section class="slot-card" style="${press.id === pressSelect.value && String(slotIndex) === String(slotSelect.value) ? 'border:2px solid rgba(255,255,255,0.18);' : ''}">
+    <section
+      class="slot-card supervisor-slot-pick${isSelected ? ' selected-slot-card' : ''}"
+      data-pick-press="${press.id}"
+      data-pick-slot="${slotIndex}"
+      style="${isSelected ? 'border:2px solid rgba(255,255,255,0.25); box-shadow:0 0 0 2px rgba(255,255,255,0.05);' : 'cursor:pointer;'}"
+    >
       <div class="slot-header">
         <h4>Slot ${slotIndex + 1}</h4>
         <span class="status-pill ${displayStatus}">
@@ -135,6 +142,22 @@ function renderSupervisorSlot(press, slot, slotIndex) {
       <div class="muted">Updated ${slot.updatedAt ? formatTime(slot.updatedAt) : '—'}</div>
     </section>
   `;
+}
+
+function wireQueueSlotClicks() {
+  supervisorBoard.querySelectorAll('[data-pick-press][data-pick-slot]').forEach((card) => {
+    card.addEventListener('click', () => {
+      pressSelect.value = card.dataset.pickPress;
+      slotSelect.value = card.dataset.pickSlot;
+      autofillForm();
+      render();
+
+      setupForm.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start'
+      });
+    });
+  });
 }
 
 function autofillForm() {
