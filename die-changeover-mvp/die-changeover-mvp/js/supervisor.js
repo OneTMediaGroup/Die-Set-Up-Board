@@ -62,7 +62,7 @@ function getFilteredLogs() {
   const selectedPress = getSelectedPress();
   if (!selectedPress) return logs.slice(0, 12);
 
-  const pressIdToken = selectedPress.id.toUpperCase(); // e.g. P20
+  const pressIdToken = selectedPress.id.toUpperCase();
   const pressNumberToken = `Press ${selectedPress.pressNumber}`;
 
   return logs
@@ -241,6 +241,9 @@ function wireEvents() {
     const validated = validateSetupForm();
     if (!validated) return;
 
+    const press = presses.find((p) => p.id === pressSelect.value);
+    const currentSlot = press ? getSlotsArray(press)[Number(slotSelect.value)] : null;
+
     try {
       await updateSetupInFirestore({
         pressId: pressSelect.value,
@@ -250,7 +253,8 @@ function wireEvents() {
           partNumber: validated.partNumber,
           qtyRemaining: validated.qtyRemaining,
           status: 'not_running',
-          notes: validated.notes
+          notes: validated.notes,
+          previousSetup: currentSlot || null
         }
       });
 
