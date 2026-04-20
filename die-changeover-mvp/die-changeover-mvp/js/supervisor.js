@@ -54,6 +54,25 @@ function startPressWatcher() {
   });
 }
 
+function getSelectedPress() {
+  return presses.find((press) => press.id === pressSelect.value) || null;
+}
+
+function getFilteredLogs() {
+  const selectedPress = getSelectedPress();
+  if (!selectedPress) return logs.slice(0, 12);
+
+  const pressIdToken = selectedPress.id.toUpperCase(); // e.g. P20
+  const pressNumberToken = `Press ${selectedPress.pressNumber}`;
+
+  return logs
+    .filter((item) => {
+      const message = String(item.message || '');
+      return message.includes(pressIdToken) || message.includes(pressNumberToken);
+    })
+    .slice(0, 12);
+}
+
 function render() {
   pressCount.textContent = String(presses.length);
   setupCount.textContent = String(
@@ -77,18 +96,26 @@ function render() {
     .map((press) => renderPressRow(press))
     .join('');
 
-  activityFeed.innerHTML = logs
-    .slice(0, 12)
-    .map(
-      (item) => `
-    <div class="history-item">
-      <strong>${item.user}</strong>
-      <div>${item.message}</div>
-      <div class="muted">${formatDateTime(item.createdAt)}</div>
-    </div>
-  `
-    )
-    .join('');
+  const filteredLogs = getFilteredLogs();
+
+  activityFeed.innerHTML = filteredLogs.length
+    ? filteredLogs
+        .map(
+          (item) => `
+      <div class="history-item">
+        <strong>${item.user}</strong>
+        <div>${item.message}</div>
+        <div class="muted">${formatDateTime(item.createdAt)}</div>
+      </div>
+    `
+        )
+        .join('')
+    : `
+      <div class="history-item">
+        <strong>No activity yet</strong>
+        <div>No recent activity for this press.</div>
+      </div>
+    `;
 
   wireQueueSlotClicks();
 }
@@ -123,7 +150,7 @@ function renderSupervisorSlot(press, slot, slotIndex) {
       class="slot-card supervisor-slot-pick${isSelected ? ' selected-slot-card' : ''}"
       data-pick-press="${press.id}"
       data-pick-slot="${slotIndex}"
-      style="${isSelected ? 'border:2px solid rgba(255,255,255,0.25); box-shadow:0 0 0 2px rgba(255,255,255,0.05);' : 'cursor:pointer;'}"
+      style="${isSelected ? 'border:2px solid rgba(255,255,255,0.25); box-shadow:0 0 0 2px rgba(255,255,255,0.05); cursor:pointer;' : 'cursor:pointer;'}"
     >
       <div class="slot-header">
         <h4>Slot ${slotIndex + 1}</h4>
