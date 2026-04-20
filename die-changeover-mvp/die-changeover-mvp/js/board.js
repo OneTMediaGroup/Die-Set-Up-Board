@@ -149,7 +149,6 @@ function fillDialog(press, slot, slotIndex) {
 function updateDialogActionState(empty) {
   document.querySelectorAll('[data-action]').forEach((button) => {
     const action = button.dataset.action;
-    const isClear = action === 'clear';
     const isNotesOnly = action === 'save_notes';
 
     if (empty) {
@@ -157,7 +156,7 @@ function updateDialogActionState(empty) {
       button.title = isNotesOnly ? '' : 'Load a setup from the supervisor screen before changing status.';
     } else {
       button.disabled = false;
-      button.title = isClear ? 'This will remove the setup from this slot.' : '';
+      button.title = action === 'clear' ? 'This will remove the setup from this slot.' : '';
     }
   });
 }
@@ -190,12 +189,37 @@ function wireDialog() {
 
 function setDialogBusyState(isBusy) {
   document.querySelectorAll('[data-action]').forEach((button) => {
-    button.disabled = isBusy || button.disabled;
+    if (button.dataset.action === 'save_notes') {
+      button.disabled = isBusy;
+      return;
+    }
+
+    const data = getSelectedPressAndSlot();
+    const empty = !data || !data.slot.partNumber;
+
+    if (empty && button.dataset.action !== 'save_notes') {
+      button.disabled = true;
+    } else {
+      button.disabled = isBusy;
+    }
   });
 
   if (dialogNotes) {
     dialogNotes.disabled = isBusy;
   }
+}
+
+function requireBlockReason() {
+  const reason = dialogNotes.value.trim();
+
+  if (reason) return true;
+
+  alert(
+    'Please add a reason before flagging Maintenance.\n\nExamples:\n- Tooling issue\n- Material missing\n- Machine fault\n- Waiting on maintenance'
+  );
+
+  dialogNotes.focus();
+  return false;
 }
 
 async function handleDialogAction(action) {
@@ -213,6 +237,10 @@ async function handleDialogAction(action) {
     return;
   }
 
+  if (action === 'blocked' && !requireBlockReason()) {
+    return;
+  }
+
   if (action === 'clear') {
     const confirmed = window.confirm(
       `Clear setup for Press ${selected.pressNumber} Slot ${selected.slotIndex + 1}?\n\nThis removes the part number, quantity, status, and notes from this slot.`
@@ -222,13 +250,13 @@ async function handleDialogAction(action) {
   }
 
   const actionLabels = {
-  running: 'mark this setup as Running',
-  change_in_progress: 'mark this setup as In Progress',
-  change_complete: 'mark this setup as Complete',
-  blocked: 'flag this setup for Maintenance',
-  save_notes: 'save these notes',
-  clear: 'clear this setup'
-};
+    running: 'mark this setup as Running',
+    change_in_progress: 'mark this setup as In Progress',
+    change_complete: 'mark this setup as Complete',
+    blocked: 'flag this setup for Maintenance',
+    save_notes: 'save these notes',
+    clear: 'clear this setup'
+  };
 
   const confirmationNeeded = action !== 'save_notes' && action !== 'clear';
   if (confirmationNeeded) {
