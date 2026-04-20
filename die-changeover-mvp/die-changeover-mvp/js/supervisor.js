@@ -1,5 +1,5 @@
 import { initStore, getSession, setSession } from './store.js';
-import { formatDateTime, statusLabel } from './utils.js';
+import { formatDateTime, formatTime, statusLabel } from './utils.js';
 import { watchPressesFromFirestore } from './firestore-presses.js';
 import { updateSetupInFirestore } from './firestore-write.js';
 import { watchLogsFromFirestore } from './firestore-logs.js';
@@ -39,16 +39,6 @@ function getSlotsArray(press) {
   return Object.values(press.slots || {});
 }
 
-function getOrderedPressesForDisplay() {
-  const selectedPressId = pressSelect.value;
-  if (!selectedPressId) return presses;
-
-  const selectedPress = presses.find((press) => press.id === selectedPressId);
-  const otherPresses = presses.filter((press) => press.id !== selectedPressId);
-
-  return selectedPress ? [selectedPress, ...otherPresses] : presses;
-}
-
 function startLogWatcher() {
   unsubscribeLogs = watchLogsFromFirestore((liveLogs) => {
     logs = liveLogs;
@@ -83,45 +73,8 @@ function render() {
 
   slotSelect.value = currentSelectedSlotIndex;
 
-  const orderedPresses = getOrderedPressesForDisplay();
-  const selectedPressId = pressSelect.value;
-
-  supervisorBoard.innerHTML = orderedPresses
-    .map((press) => {
-      const isSelected = press.id === selectedPressId;
-      const selectedClass = isSelected ? ' selected-press-card' : '';
-      const selectedBadge = isSelected ? '<span class="status-pill running">Selected</span>' : '';
-
-      return `
-        <article class="queue-card${selectedClass}" data-press-card="${press.id}">
-          <header>
-            <div>
-              <strong>Press ${press.pressNumber}</strong>
-              <span class="muted">${press.area} · Shift ${press.shift}</span>
-            </div>
-            <div style="display:flex; gap:8px; align-items:center;">
-              ${selectedBadge}
-            </div>
-          </header>
-          <div class="queue-slots">
-            ${getSlotsArray(press)
-              .map(
-                (slot, index) => `
-              <div class="queue-slot">
-                <div>
-                  <strong>Slot ${index + 1}</strong>
-                  <div class="muted">${slot.partNumber || 'No setup'} · ${slot.partNumber ? slot.qtyRemaining : '—'}</div>
-                  <div class="muted small">Last updated by: ${slot.lastUpdatedBy || press.lastUpdatedBy || '—'}</div>
-                </div>
-                <span class="status-pill ${slot.partNumber ? slot.status : 'no_setup'}">${slot.partNumber ? statusLabel(slot.status) : 'No Setup'}</span>
-              </div>
-            `
-              )
-              .join('')}
-          </div>
-        </article>
-      `;
-    })
+  supervisorBoard.innerHTML = presses
+    .map((press) => renderPressRow(press))
     .join('');
 
   activityFeed.innerHTML = logs
@@ -136,25 +89,52 @@ function render() {
   `
     )
     .join('');
-
-  applySelectedPressStyles();
 }
 
-function applySelectedPressStyles() {
-  supervisorBoard.querySelectorAll('[data-press-card]').forEach((card) => {
-    card.style.borderWidth = '1px';
-    card.style.borderStyle = 'solid';
-    card.style.borderColor = 'rgba(255,255,255,0.08)';
-    card.style.boxShadow = 'none';
-  });
+function renderPressRow(press) {
+  const slots = getSlotsArray(press);
+  const isSelected = press.id === pressSelect.value;
 
-  const selectedCard = supervisorBoard.querySelector(`[data-press-card="${pressSelect.value}"]`);
-  if (!selectedCard) return;
+  return `
+    <article class="press-row" style="${isSelected ? 'border:2px solid rgba(255,255,255,0.22); box-shadow:0 0 0 2px rgba(255,255,255,0.04);' : ''}">
+      <div class="press-row-header">
+        <div>
+          <h3>Press ${press.pressNumber}</h3>
+          <div class="muted">${press.area} · Shift ${press.shift}</div>
+        </div>
+        <div class="muted">${slots.filter((slot) => slot.partNumber).length} active setups</div>
+      </div>
 
-  selectedCard.style.borderWidth = '2px';
-  selectedCard.style.borderStyle = 'solid';
-  selectedCard.style.borderColor = 'rgba(255,255,255,0.35)';
-  selectedCard.style.boxShadow = '0 0 0 2px rgba(255,255,255,0.06)';
+      <div class="slot-grid">
+        ${slots.map((slot, slotIndex) => renderSupervisorSlot(press, slot, slotIndex)).join('')}
+      </div>
+    </article>
+  `;
+}
+
+function renderSupervisorSlot(press, slot, slotIndex) {
+  const empty = !slot.partNumber;
+  const displayStatus = empty ? 'no_setup' : slot.status;
+
+  return `
+    <section class="slot-card" style="${press.id === pressSelect.value && String(slotIndex) === String(slotSelect.value) ? 'border:2px solid rgba(255,255,255,0.18);' : ''}">
+      <div class="slot-header">
+        <h4>Slot ${slotIndex + 1}</h4>
+        <span class="status-pill ${displayStatus}">
+          ${empty ? 'No Setup' : statusLabel(slot.status)}
+        </span>
+      </div>
+
+      <div class="slot-meta">
+        <div class="meta-box"><span>Part</span><strong>${slot.partNumber || '—'}</strong></div>
+        <div class="meta-box"><span>Qty</span><strong>${slot.partNumber ? slot.qtyRemaining : '—'}</strong></div>
+      </div>
+
+      <div class="slot-note">${slot.notes || 'No notes added.'}</div>
+      <div class="muted">Last updated by ${slot.lastUpdatedBy || press.lastUpdatedBy || '—'}</div>
+      <div class="muted">Updated ${slot.updatedAt ? formatTime(slot.updatedAt) : '—'}</div>
+    </section>
+  `;
 }
 
 function autofillForm() {
@@ -199,7 +179,10 @@ function wireEvents() {
     render();
   });
 
-  slotSelect.addEventListener('change', autofillForm);
+  slotSelect.addEventListener('change', () => {
+    autofillForm();
+    render();
+  });
 
   setupForm.addEventListener('submit', async (event) => {
     event.preventDefault();
