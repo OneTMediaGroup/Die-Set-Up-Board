@@ -84,11 +84,19 @@ function renderBoard() {
   pressGrid.querySelectorAll('[data-open-setup]').forEach((button) => {
     button.addEventListener('click', () => openSetup(button.dataset.pressId, Number(button.dataset.slotIndex)));
   });
+
+  pressGrid.querySelectorAll('[data-quick-complete]').forEach((button) => {
+    button.addEventListener('click', async (event) => {
+      event.stopPropagation();
+      await handleQuickComplete(button.dataset.pressId, Number(button.dataset.slotIndex));
+    });
+  });
 }
 
 function renderSlot(press, slot, slotIndex) {
   const empty = !slot.partNumber;
   const displayStatus = empty ? 'no_setup' : slot.status;
+  const showQuickComplete = !empty && slot.status !== 'change_complete';
 
   return `
     <section class="slot-card">
@@ -103,6 +111,11 @@ function renderSlot(press, slot, slotIndex) {
       <div class="slot-note">${slot.notes || 'No notes added.'}</div>
       <div class="muted">Last updated by ${slot.lastUpdatedBy || press.lastUpdatedBy || '—'}</div>
       <div class="slot-actions">
+        ${
+          showQuickComplete
+            ? `<button class="button full" data-quick-complete data-press-id="${press.id}" data-slot-index="${slotIndex}">Quick Complete</button>`
+            : ''
+        }
         <button class="button primary full" data-open-setup data-press-id="${press.id}" data-slot-index="${slotIndex}">
           ${empty ? 'View Notes' : 'Open Actions'}
         </button>
@@ -110,6 +123,41 @@ function renderSlot(press, slot, slotIndex) {
       <div class="muted">Updated ${formatTime(slot.updatedAt)}</div>
     </section>
   `;
+}
+
+async function handleQuickComplete(pressId, slotIndex) {
+  const session = getSession() || { name: 'Demo User' };
+  const press = presses.find((item) => item.id === pressId);
+  if (!press) return;
+
+  const slots = getSlotsArray(press);
+  const slot = slots[slotIndex];
+  if (!slot || !slot.partNumber) return;
+  if (slot.status === 'change_complete') return;
+
+  const confirmed = window.confirm(
+    `Mark Press ${press.pressNumber} Slot ${slotIndex + 1} as Complete?\n\nPart: ${slot.partNumber}`
+  );
+
+  if (!confirmed) return;
+
+  try {
+    await updateSetupInFirestore({
+      pressId,
+      slotIndex,
+      userName: session.name,
+      setup: {
+        partNumber: slot.partNumber,
+        qtyRemaining: slot.qtyRemaining,
+        status: 'change_complete',
+        notes: slot.notes || '',
+        previousSetup: slot
+      }
+    });
+  } catch (error) {
+    console.error('❌ Quick complete failed:', error);
+    alert('Quick Complete failed. Please try again.');
+  }
 }
 
 function openSetup(pressId, slotIndex) {
