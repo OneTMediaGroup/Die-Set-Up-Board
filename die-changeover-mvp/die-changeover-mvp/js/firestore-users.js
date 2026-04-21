@@ -3,49 +3,33 @@ import {
   collection,
   getDocs,
   doc,
-  updateDoc,
-  onSnapshot,
-  query,
-  orderBy
+  updateDoc
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
 export async function fetchUsersFromFirestore() {
   const snapshot = await getDocs(collection(db, 'users'));
   const users = [];
 
-  snapshot.forEach((docSnap) => {
+  snapshot.forEach((item) => {
+    const data = item.data();
     users.push({
-      id: docSnap.id,
-      ...docSnap.data()
+      id: item.id,
+      ...data,
+      status: data.status || (data.isActive === false ? 'inactive' : 'active')
     });
   });
 
-  return users
-    .filter((user) => user.isActive)
-    .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
-}
-
-export function watchUsersFromFirestore(callback) {
-  const usersQuery = query(collection(db, 'users'), orderBy('name'));
-
-  return onSnapshot(usersQuery, (snapshot) => {
-    const users = [];
-
-    snapshot.forEach((docSnap) => {
-      users.push({
-        id: docSnap.id,
-        ...docSnap.data()
-      });
-    });
-
-    callback(users);
-  });
+  return users.sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
 }
 
 export async function updateUserInFirestore(userId, updates) {
   const ref = doc(db, 'users', userId);
-  await updateDoc(ref, {
+
+  const payload = {
     ...updates,
+    isActive: updates.status === 'active',
     updatedAt: new Date().toISOString()
-  });
+  };
+
+  await updateDoc(ref, payload);
 }
