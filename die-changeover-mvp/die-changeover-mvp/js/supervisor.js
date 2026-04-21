@@ -34,7 +34,7 @@ startLogWatcher();
 async function bootstrapSession() {
   const storedUser = getStoredSessionUser();
 
-  if (storedUser) {
+  if (storedUser && (storedUser.role === 'supervisor' || storedUser.role === 'admin')) {
     setSession(storedUser);
     currentUserSupervisor.textContent = `${storedUser.name} · ${storedUser.role}`;
     return;
@@ -42,11 +42,13 @@ async function bootstrapSession() {
 
   try {
     const users = await fetchUsersFromFirestore();
-    const defaultUser = users.find((user) => user.role === 'supervisor') || users[0] || {
-      id: 'u2',
-      name: 'Sully T.',
-      role: 'supervisor'
-    };
+    const defaultUser =
+      users.find((user) => user.role === 'supervisor') ||
+      users.find((user) => user.role === 'admin') || {
+        id: 'u2',
+        name: 'Sully T.',
+        role: 'supervisor'
+      };
 
     setStoredSessionUser(defaultUser);
     setSession(defaultUser);
@@ -206,10 +208,12 @@ function wireQueueSlotClicks() {
       autofillForm();
       render();
 
-      setupForm.scrollIntoView({
-        behavior: 'smooth',
-        block: 'start'
-      });
+      if (setupForm && (isSupervisor() || isAdmin())) {
+        setupForm.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start'
+        });
+      }
     });
   });
 }
@@ -222,9 +226,13 @@ function autofillForm() {
   const slot = slots[Number(slotSelect.value)];
   if (!slot) return;
 
-  document.getElementById('partInput').value = slot.partNumber || '';
-  document.getElementById('qtyInput').value = slot.qtyRemaining || '';
-  document.getElementById('notesInput').value = slot.notes || '';
+  const partInput = document.getElementById('partInput');
+  const qtyInput = document.getElementById('qtyInput');
+  const notesInput = document.getElementById('notesInput');
+
+  if (partInput) partInput.value = slot.partNumber || '';
+  if (qtyInput) qtyInput.value = slot.qtyRemaining || '';
+  if (notesInput) notesInput.value = slot.notes || '';
 }
 
 function validateSetupForm() {
