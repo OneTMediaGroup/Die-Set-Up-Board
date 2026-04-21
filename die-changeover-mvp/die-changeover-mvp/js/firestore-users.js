@@ -15,20 +15,12 @@ export async function fetchUsersFromFirestore() {
 
     users.push({
       id: item.id,
-      name: data.name || '',
-      role: data.role || 'dieSetter',
-      status: data.status || (data.isActive === false ? 'inactive' : 'active'),
-      isActive: data.isActive !== false,
-      createdAt: data.createdAt || null,
-      updatedAt: data.updatedAt || null
+      ...data,
+      status: data.status || (data.isActive === false ? 'inactive' : 'active')
     });
   });
 
-  console.log('🔥 fetchUsersFromFirestore result:', users);
-
-  return users.sort((a, b) =>
-    String(a.name || '').localeCompare(String(b.name || ''))
-  );
+  return users.sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
 }
 
 export async function updateUserInFirestore(userId, updates) {
