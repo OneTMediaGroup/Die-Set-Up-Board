@@ -348,4 +348,22 @@ input, textarea, select {
   #supervisorBoard .slot-grid {
     grid-template-columns: repeat(2, 1fr);
   }
+/* Empty slot highlight */
+.slot-card.empty-slot-card {
+  border: 2px dashed rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.slot-card.empty-slot-card .slot-note {
+  color: rgba(255, 255, 255, 0.68);
+}
+
+.slot-card.empty-slot-card .meta-box strong {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.slot-card.empty-slot-card .status-pill.no_setup {
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+}
+  
 }
