@@ -1,4 +1,4 @@
-import { initStore, getSession, setSession } from './store.js';
+import { isDieSetter, isAdmin } from './roles.js';import { initStore, getSession, setSession } from './store.js';
 import { formatTime, formatDateTime, statusLabel } from './utils.js';
 import { watchPressesFromFirestore } from './firestore-presses.js';
 import { updateSetupInFirestore } from './firestore-write.js';
@@ -157,7 +157,8 @@ function renderBoard() {
 function renderSlot(press, slot, slotIndex) {
   const empty = !slot.partNumber;
   const displayStatus = empty ? 'no_setup' : slot.status;
-  const showQuickComplete = !empty && slot.status !== 'change_complete';
+  const canAct = isDieSetter() || isAdmin();
+const showQuickComplete = canAct && !empty && slot.status !== 'change_complete';
   const emptyClass = empty ? ' empty-slot-card' : '';
 
   return `
@@ -178,14 +179,11 @@ function renderSlot(press, slot, slotIndex) {
             ? `<button class="button full" data-quick-complete data-press-id="${press.id}" data-slot-index="${slotIndex}">Quick Complete</button>`
             : ''
         }
-        <button class="button primary full" data-open-setup data-press-id="${press.id}" data-slot-index="${slotIndex}">
-          ${empty ? 'View Notes' : 'Open Actions'}
-        </button>
-      </div>
-      <div class="muted">Updated ${formatTime(slot.updatedAt)}</div>
-    </section>
-  `;
-}
+       ${canAct ? `
+  <button class="button primary full" data-open-setup data-press-id="${press.id}" data-slot-index="${slotIndex}">
+    ${empty ? 'View Notes' : 'Open Actions'}
+  </button>
+` : ''}
 
 async function handleQuickComplete(pressId, slotIndex) {
   const session = getSession() || { name: 'Demo User' };
