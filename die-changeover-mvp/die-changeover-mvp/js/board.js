@@ -112,7 +112,10 @@ function hideDialogNotice() {
 
 function startPressWatcher() {
   unsubscribePresses = watchPressesFromFirestore((livePresses) => {
-    presses = livePresses;
+    presses = livePresses.map((press) => ({
+      ...press,
+      isLocked: Boolean(press.isLocked)
+    }));
     renderBoard();
 
     if (setupDialog.open && selected) {
@@ -133,7 +136,7 @@ function renderBoard() {
         <div class="press-row-header">
           <div>
             <h3>Press ${press.pressNumber}</h3>
-            <div class="muted">${press.area} · Shift ${press.shift}</div>
+            <div class="muted">${press.area} · Shift ${press.shift}${press.isLocked ? ` · Locked by ${press.lockedBy || 'Admin'}` : ''}</div>
           </div>
           <div class="muted">${slots.filter((slot) => slot.partNumber).length} active setups</div>
         </div>
@@ -159,9 +162,10 @@ function renderBoard() {
 function renderSlot(press, slot, slotIndex) {
   const empty = !slot.partNumber;
   const displayStatus = empty ? 'no_setup' : slot.status;
-  const canAct = isDieSetter() || isAdmin();
+  const canAct = (isDieSetter() || isAdmin()) && !press.isLocked;
   const showQuickComplete = canAct && !empty && slot.status !== 'change_complete';
   const emptyClass = empty ? ' empty-slot-card' : '';
+  const lockedBadge = press.isLocked ? `<div class="muted" style="margin-bottom:8px;">🔒 Press locked</div>` : '';
 
   return `
     <section class="slot-card${emptyClass}">
@@ -175,6 +179,7 @@ function renderSlot(press, slot, slotIndex) {
       </div>
       <div class="slot-note">${slot.notes || 'No notes added.'}</div>
       <div class="muted">Last updated by ${slot.lastUpdatedBy || press.lastUpdatedBy || '—'}</div>
+      ${lockedBadge}
       <div class="slot-actions">
         ${
           showQuickComplete
@@ -197,7 +202,10 @@ function renderSlot(press, slot, slotIndex) {
 async function handleQuickComplete(pressId, slotIndex) {
   const session = getSession() || { name: 'Demo User' };
   const press = presses.find((item) => item.id === pressId);
-  if (!press) return;
+  if (!press || press.isLocked) {
+    alert('This press is locked by Admin.');
+    return;
+  }
 
   const slots = getSlotsArray(press);
   const slot = slots[slotIndex];
@@ -241,6 +249,11 @@ function openSetup(pressId, slotIndex) {
   const press = presses.find((item) => item.id === pressId);
   if (!press) return;
 
+  if (press.isLocked && !isAdmin()) {
+    alert('This press is locked by Admin.');
+    return;
+  }
+
   const slots = getSlotsArray(press);
   const slot = slots[slotIndex];
   if (!slot) return;
@@ -270,14 +283,14 @@ function fillDialog(press, slot, slotIndex) {
   const empty = !slot.partNumber;
 
   document.getElementById('dialogTitle').textContent = `Press ${press.pressNumber} · Slot ${slotIndex + 1}`;
-  document.getElementById('dialogSubtitle').textContent = `${press.area} · Shift ${press.shift}`;
+  document.getElementById('dialogSubtitle').textContent = `${press.area} · Shift ${press.shift}${press.isLocked ? ' · LOCKED' : ''}`;
   document.getElementById('dialogPart').textContent = slot.partNumber || '—';
   document.getElementById('dialogQty').textContent = slot.partNumber ? String(slot.qtyRemaining) : '—';
   document.getElementById('dialogStatus').textContent = slot.partNumber ? statusLabel(slot.status) : 'No setup';
   document.getElementById('dialogUpdated').textContent = formatDateTime(slot.updatedAt);
   dialogNotes.value = slot.notes || '';
 
-  updateDialogActionState(empty);
+  updateDialogActionState(empty || press.isLocked);
 }
 
 function updateDialogActionState(empty) {
@@ -287,7 +300,7 @@ function updateDialogActionState(empty) {
 
     if (empty) {
       button.disabled = !isNotesOnly;
-      button.title = isNotesOnly ? '' : 'Load a setup from the supervisor screen before changing status.';
+      button.title = isNotesOnly ? '' : 'This slot cannot be changed right now.';
     } else {
       button.disabled = false;
       button.title = action === 'clear' ? 'This will remove the setup from this slot.' : '';
@@ -331,7 +344,7 @@ function setDialogBusyState(isBusy) {
     }
 
     const data = getSelectedPressAndSlot();
-    const empty = !data || !data.slot.partNumber;
+    const empty = !data || !data.slot.partNumber || data.press.isLocked;
 
     if (empty && button.dataset.action !== 'save_notes') {
       button.disabled = true;
@@ -365,8 +378,13 @@ async function handleDialogAction(action) {
   const data = getSelectedPressAndSlot();
   if (!data) return;
 
-  const { slot } = data;
+  const { slot, press } = data;
   const empty = !slot.partNumber;
+
+  if (press.isLocked && !isAdmin()) {
+    alert('This press is locked by Admin.');
+    return;
+  }
 
   if (empty && action !== 'save_notes') {
     alert('This slot has no active setup yet. Use the supervisor screen to add one first.');
