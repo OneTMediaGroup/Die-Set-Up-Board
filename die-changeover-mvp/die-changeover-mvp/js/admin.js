@@ -1,188 +1,99 @@
-import { initStore, getSession, setSession } from './store.js';
-import { fetchUsersFromFirestore, watchUsersFromFirestore, updateUserInFirestore } from './firestore-users.js';
+
+import { fetchUsersFromFirestore, updateUserInFirestore } from './firestore-users.js';
+import { getSession, setSession } from './store.js';
 import { getStoredSessionUser, setStoredSessionUser } from './session-user.js';
 
-initStore();
-
-const currentAdminUser = document.getElementById('currentAdminUser');
-const adminUsersList = document.getElementById('adminUsersList');
-const adminUsersCount = document.getElementById('adminUsersCount');
-const refreshAdminUsersBtn = document.getElementById('refreshAdminUsersBtn');
+const usersContainer = document.getElementById('usersContainer');
+const refreshBtn = document.getElementById('refreshUsersBtn');
+const userCount = document.getElementById('userCount');
 
 let users = [];
-let unsubscribeUsers = null;
 
-bootstrapAdminSession();
-wireEvents();
-startUsersWatcher();
+init();
 
-async function bootstrapAdminSession() {
-  const storedUser = getStoredSessionUser();
-
-  if (storedUser && storedUser.role === 'admin') {
-    setSession(storedUser);
-    if (currentAdminUser) {
-      currentAdminUser.textContent = `${storedUser.name} · ${storedUser.role}`;
-    }
-    return;
-  }
-
-  try {
-    const liveUsers = await fetchUsersFromFirestore();
-    const defaultAdmin =
-      liveUsers.find((user) => user.role === 'admin') || {
-        id: 'admin1',
-        name: 'IT Admin',
-        role: 'admin'
-      };
-
-    setStoredSessionUser(defaultAdmin);
-    setSession(defaultAdmin);
-
-    if (currentAdminUser) {
-      currentAdminUser.textContent = `${defaultAdmin.name} · ${defaultAdmin.role}`;
-    }
-  } catch (error) {
-    console.error('❌ Failed loading admin user:', error);
-
-    const fallbackAdmin = {
-      id: 'admin1',
-      name: 'IT Admin',
-      role: 'admin'
-    };
-
-    setSession(fallbackAdmin);
-
-    if (currentAdminUser) {
-      currentAdminUser.textContent = `${fallbackAdmin.name} · ${fallbackAdmin.role}`;
-    }
-  }
+function init() {
+  loadUsers();
+  refreshBtn.addEventListener('click', loadUsers);
 }
 
-function startUsersWatcher() {
-  unsubscribeUsers = watchUsersFromFirestore((liveUsers) => {
-    users = liveUsers;
+async function loadUsers() {
+  try {
+    users = await fetchUsersFromFirestore();
     renderUsers();
-  });
+  } catch (err) {
+    console.error('❌ Failed to load users:', err);
+  }
 }
 
 function renderUsers() {
-  if (adminUsersCount) {
-    adminUsersCount.textContent = String(users.length);
-  }
+  userCount.textContent = `Count: ${users.length}`;
 
-  if (!adminUsersList) return;
+  usersContainer.innerHTML = users.map(user => `
+    <div class="user-card">
+      <strong>${user.name}</strong>
+      <div>User ID: ${user.id}</div>
 
-  adminUsersList.innerHTML = users.length
-    ? users.map((user) => renderUserCard(user)).join('')
-    : `
-      <div class="card">
-        <h3>No users found</h3>
-        <p class="muted">Seed users first, then reload this page.</p>
+      <div class="user-row">
+        <label>Role</label>
+        <select data-role="${user.id}">
+          <option value="dieSetter" ${user.role === 'dieSetter' ? 'selected' : ''}>dieSetter</option>
+          <option value="supervisor" ${user.role === 'supervisor' ? 'selected' : ''}>supervisor</option>
+          <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>admin</option>
+        </select>
       </div>
-    `;
 
-  wireUserCards();
+      <div class="user-row">
+        <label>Status</label>
+        <select data-status="${user.id}">
+          <option value="active" ${user.status === 'active' ? 'selected' : ''}>Active</option>
+          <option value="inactive" ${user.status === 'inactive' ? 'selected' : ''}>Inactive</option>
+        </select>
+      </div>
+
+      <button data-save="${user.id}" class="button primary">Save User</button>
+    </div>
+  `).join('');
+
+  wireSaveButtons();
 }
 
-function renderUserCard(user) {
-  return `
-    <article class="card admin-user-card" data-user-id="${user.id}">
-      <div class="card-header" style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px;">
-        <div>
-          <h3 style="margin:0 0 4px 0;">${user.name || 'Unnamed User'}</h3>
-          <div class="muted">User ID: ${user.id}</div>
-        </div>
-        <span class="status-pill ${user.isActive ? 'running' : 'not_running'}">
-          ${user.isActive ? 'Active' : 'Inactive'}
-        </span>
-      </div>
+function wireSaveButtons() {
+  document.querySelectorAll('[data-save]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const userId = btn.dataset.save;
 
-      <div style="display:grid; grid-template-columns:repeat(2, minmax(180px, 1fr)); gap:12px; margin-top:16px;">
-        <label style="display:flex; flex-direction:column; gap:6px;">
-          <span class="muted">Role</span>
-          <select class="admin-role-select" data-user-id="${user.id}">
-            <option value="dieSetter" ${user.role === 'dieSetter' ? 'selected' : ''}>dieSetter</option>
-            <option value="supervisor" ${user.role === 'supervisor' ? 'selected' : ''}>supervisor</option>
-            <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>admin</option>
-          </select>
-        </label>
-
-        <label style="display:flex; flex-direction:column; gap:6px;">
-          <span class="muted">Status</span>
-          <select class="admin-active-select" data-user-id="${user.id}">
-            <option value="true" ${user.isActive ? 'selected' : ''}>Active</option>
-            <option value="false" ${!user.isActive ? 'selected' : ''}>Inactive</option>
-          </select>
-        </label>
-      </div>
-
-      <div style="display:flex; gap:10px; margin-top:16px; flex-wrap:wrap;">
-        <button class="button primary admin-save-user-btn" data-user-id="${user.id}">
-          Save User
-        </button>
-      </div>
-
-      <div class="muted" style="margin-top:12px;">
-        Current role: ${user.role || '—'}
-      </div>
-    </article>
-  `;
-}
-
-function wireUserCards() {
-  document.querySelectorAll('.admin-save-user-btn').forEach((button) => {
-    button.addEventListener('click', async () => {
-      const userId = button.dataset.userId;
-      const roleSelect = document.querySelector(`.admin-role-select[data-user-id="${userId}"]`);
-      const activeSelect = document.querySelector(`.admin-active-select[data-user-id="${userId}"]`);
-
-      if (!roleSelect || !activeSelect) return;
-
-      const nextRole = roleSelect.value;
-      const nextActive = activeSelect.value === 'true';
+      const role = document.querySelector(`[data-role="${userId}"]`).value;
+      const status = document.querySelector(`[data-status="${userId}"]`).value;
 
       try {
-        button.disabled = true;
-        button.textContent = 'Saving...';
+        await updateUserInFirestore(userId, { role, status });
 
-        await updateUserInFirestore(userId, {
-          role: nextRole,
-          isActive: nextActive
-        });
+        handleLiveSessionUpdate(userId, role, status);
 
-        button.textContent = 'Saved';
-        setTimeout(() => {
-          button.textContent = 'Save User';
-          button.disabled = false;
-        }, 700);
-      } catch (error) {
-        console.error('❌ Failed updating user:', error);
-        button.textContent = 'Save Failed';
-        setTimeout(() => {
-          button.textContent = 'Save User';
-          button.disabled = false;
-        }, 1000);
+        btn.textContent = 'Saved ✓';
+        setTimeout(() => (btn.textContent = 'Save User'), 1200);
+
+      } catch (err) {
+        console.error('❌ Failed to save user:', err);
+        alert('Save failed');
       }
     });
   });
 }
 
-function wireEvents() {
-  if (refreshAdminUsersBtn) {
-    refreshAdminUsersBtn.addEventListener('click', async () => {
-      try {
-        users = await fetchUsersFromFirestore();
-        renderUsers();
-      } catch (error) {
-        console.error('❌ Failed refreshing users:', error);
-      }
-    });
-  }
-}
+function handleLiveSessionUpdate(userId, role, status) {
+  const current = getSession();
+  if (!current || current.id !== userId) return;
 
-window.addEventListener('beforeunload', () => {
-  if (typeof unsubscribeUsers === 'function') {
-    unsubscribeUsers();
+  const updatedUser = { ...current, role, status };
+
+  // if user is deactivated → force downgrade
+  if (status !== 'active') {
+    alert('Your account has been deactivated.');
   }
-});
+
+  setSession(updatedUser);
+  setStoredSessionUser(updatedUser);
+
+  console.log('🔄 Live session updated:', updatedUser);
+}
