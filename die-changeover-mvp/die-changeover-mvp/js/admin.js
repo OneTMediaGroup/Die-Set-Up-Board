@@ -1,4 +1,3 @@
-
 import { fetchUsersFromFirestore, updateUserInFirestore } from './firestore-users.js';
 import { getSession, setSession } from './store.js';
 import { getStoredSessionUser, setStoredSessionUser } from './session-user.js';
