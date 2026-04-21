@@ -144,10 +144,11 @@ function renderSupervisorSlot(press, slot, slotIndex) {
   const empty = !slot.partNumber;
   const displayStatus = empty ? 'no_setup' : slot.status;
   const isSelected = press.id === pressSelect.value && String(slotIndex) === String(slotSelect.value);
+  const emptyClass = empty ? ' empty-slot-card' : '';
 
   return `
     <section
-      class="slot-card supervisor-slot-pick${isSelected ? ' selected-slot-card' : ''}"
+      class="slot-card supervisor-slot-pick${isSelected ? ' selected-slot-card' : ''}${emptyClass}"
       data-pick-press="${press.id}"
       data-pick-slot="${slotIndex}"
       style="${isSelected ? 'border:2px solid rgba(255,255,255,0.25); box-shadow:0 0 0 2px rgba(255,255,255,0.05); cursor:pointer;' : 'cursor:pointer;'}"
