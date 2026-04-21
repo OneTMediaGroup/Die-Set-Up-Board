@@ -254,12 +254,20 @@ function wireEvents() {
           qtyRemaining: validated.qtyRemaining,
           status: 'not_running',
           notes: validated.notes,
-          previousSetup: currentSlot || null
+          previousSetup: currentSlot || null,
+          expectedUpdatedAt: currentSlot?.updatedAt || null
         }
       });
 
       autofillForm();
     } catch (error) {
+      if (error?.code === 'slot-conflict') {
+        alert(
+          `This slot was updated by ${error.lastUpdatedBy || 'another user'} before your save.\n\nPlease review the latest data and try again.`
+        );
+        return;
+      }
+
       console.error('❌ Supervisor submit failed:', error);
     }
   });
