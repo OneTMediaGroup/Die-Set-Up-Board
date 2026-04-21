@@ -133,9 +133,10 @@ function renderSlot(press, slot, slotIndex) {
   const empty = !slot.partNumber;
   const displayStatus = empty ? 'no_setup' : slot.status;
   const showQuickComplete = !empty && slot.status !== 'change_complete';
+  const emptyClass = empty ? ' empty-slot-card' : '';
 
   return `
-    <section class="slot-card">
+    <section class="slot-card${emptyClass}">
       <div class="slot-header">
         <h4>Slot ${slotIndex + 1}</h4>
         <span class="status-pill ${displayStatus}">${empty ? 'No Setup' : statusLabel(slot.status)}</span>
