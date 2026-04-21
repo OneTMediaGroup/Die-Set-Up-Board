@@ -2,17 +2,17 @@ import { fetchUsersFromFirestore, updateUserInFirestore } from './firestore-user
 import { getSession, setSession } from './store.js';
 import { getStoredSessionUser, setStoredSessionUser } from './session-user.js';
 
-const usersContainer = document.getElementById('usersContainer');
-const refreshBtn = document.getElementById('refreshUsersBtn');
-const userCount = document.getElementById('userCount');
-const sidebarSessionText = document.getElementById('sidebarSessionText');
+const usersContainer = document.getElementById('adminUsersList');
+const refreshBtn = document.getElementById('refreshAdminUsersBtn');
+const userCount = document.getElementById('adminUsersCount');
+const currentAdminUser = document.getElementById('currentAdminUser');
 
 let users = [];
 
 init();
 
 async function init() {
-  renderSidebarSession();
+  renderCurrentAdminUser();
   await loadUsers();
 
   if (refreshBtn) {
@@ -20,18 +20,18 @@ async function init() {
   }
 }
 
-function renderSidebarSession() {
+function renderCurrentAdminUser() {
   const session = getSession() || getStoredSessionUser();
 
-  if (!sidebarSessionText) return;
+  if (!currentAdminUser) return;
 
   if (!session) {
-    sidebarSessionText.textContent = 'No active user';
+    currentAdminUser.textContent = 'No active user';
     return;
   }
 
   const statusText = session.status && session.status !== 'active' ? ` · ${session.status}` : '';
-  sidebarSessionText.textContent = `${session.name} · ${session.role}${statusText}`;
+  currentAdminUser.textContent = `${session.name} · ${session.role}${statusText}`;
 }
 
 async function loadUsers() {
@@ -43,7 +43,7 @@ async function loadUsers() {
     users = await fetchUsersFromFirestore();
 
     if (userCount) {
-      userCount.textContent = `Count: ${users.length}`;
+      userCount.textContent = String(users.length);
     }
 
     renderUsers();
@@ -52,7 +52,7 @@ async function loadUsers() {
 
     if (usersContainer) {
       usersContainer.innerHTML = `
-        <div class="user-card">
+        <div class="card">
           <strong>Load failed</strong>
           <div class="muted">Could not load users from Firestore.</div>
         </div>
@@ -60,7 +60,7 @@ async function loadUsers() {
     }
 
     if (userCount) {
-      userCount.textContent = 'Count: 0';
+      userCount.textContent = '0';
     }
   }
 }
@@ -70,7 +70,7 @@ function renderUsers() {
 
   if (!users.length) {
     usersContainer.innerHTML = `
-      <div class="user-card">
+      <div class="card">
         <strong>No users found</strong>
         <div class="muted">Seed users or check Firestore project/config.</div>
       </div>
@@ -82,8 +82,8 @@ function renderUsers() {
     const status = user.status || (user.isActive === false ? 'inactive' : 'active');
 
     return `
-      <div class="user-card">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;">
           <div>
             <strong>${user.name}</strong>
             <div class="muted">User ID: ${user.id}</div>
@@ -93,25 +93,29 @@ function renderUsers() {
           </span>
         </div>
 
-        <div class="user-row">
-          <label>Role</label>
-          <select data-role="${user.id}">
-            <option value="dieSetter" ${user.role === 'dieSetter' ? 'selected' : ''}>dieSetter</option>
-            <option value="supervisor" ${user.role === 'supervisor' ? 'selected' : ''}>supervisor</option>
-            <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>admin</option>
-          </select>
+        <div class="grid-2" style="margin-top:16px;">
+          <div>
+            <label class="muted">Role</label>
+            <select data-role="${user.id}">
+              <option value="dieSetter" ${user.role === 'dieSetter' ? 'selected' : ''}>dieSetter</option>
+              <option value="supervisor" ${user.role === 'supervisor' ? 'selected' : ''}>supervisor</option>
+              <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>admin</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="muted">Status</label>
+            <select data-status="${user.id}">
+              <option value="active" ${status === 'active' ? 'selected' : ''}>Active</option>
+              <option value="inactive" ${status === 'inactive' ? 'selected' : ''}>Inactive</option>
+            </select>
+          </div>
         </div>
 
-        <div class="user-row">
-          <label>Status</label>
-          <select data-status="${user.id}">
-            <option value="active" ${status === 'active' ? 'selected' : ''}>Active</option>
-            <option value="inactive" ${status === 'inactive' ? 'selected' : ''}>Inactive</option>
-          </select>
+        <div style="margin-top:14px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+          <button data-save="${user.id}" class="button primary">Save User</button>
+          <span class="muted">Current role: ${user.role}</span>
         </div>
-
-        <button data-save="${user.id}" class="button primary">Save User</button>
-        <div class="muted" style="margin-top:8px;">Current role: ${user.role}</div>
       </div>
     `;
   }).join('');
@@ -144,7 +148,10 @@ function wireSaveButtons() {
 
         setTimeout(() => {
           const sameBtn = document.querySelector(`[data-save="${userId}"]`);
-          if (sameBtn) sameBtn.textContent = 'Save User';
+          if (sameBtn) {
+            sameBtn.textContent = 'Save User';
+            sameBtn.disabled = false;
+          }
         }, 1000);
       } catch (err) {
         console.error('❌ Failed to save user:', err);
@@ -169,7 +176,7 @@ function handleLiveSessionUpdate(userId, role, status) {
 
   setSession(updatedUser);
   setStoredSessionUser(updatedUser);
-  renderSidebarSession();
+  renderCurrentAdminUser();
 
   if (status !== 'active') {
     alert(`${updatedUser.name || 'This user'} has been set to inactive.`);
