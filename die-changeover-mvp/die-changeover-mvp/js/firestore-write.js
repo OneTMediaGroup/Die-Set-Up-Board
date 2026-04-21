@@ -1,5 +1,8 @@
 import { db } from './firebase-config.js';
-import { doc, updateDoc } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import {
+  doc,
+  runTransaction
+} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import { addLogToFirestore } from './firestore-logs.js';
 
 function statusLabel(status) {
@@ -72,27 +75,69 @@ function buildLogMessage({ pressId, slotIndex, setup, previousSetup }) {
   return `Updated ${pressCode} ${slotText} · ${setup.partNumber} · ${statusLabel(newStatus)}`;
 }
 
+function makeConflictError({ pressId, slotIndex, lastUpdatedBy, updatedAt }) {
+  const error = new Error('conflict');
+  error.code = 'slot-conflict';
+  error.pressId = pressId;
+  error.slotIndex = slotIndex;
+  error.lastUpdatedBy = lastUpdatedBy || 'another user';
+  error.updatedAt = updatedAt || null;
+  return error;
+}
+
 export async function updateSetupInFirestore({ pressId, slotIndex, setup, userName }) {
   const ref = doc(db, 'presses', pressId);
   const now = new Date().toISOString();
-
-  // Read current in-memory state from the page if available via Firestore listener write pattern is not available here,
-  // so we store a minimal previous snapshot from the setup payload caller when possible.
-  // Since callers currently do not pass previous state, we will infer best-effort messages from status + payload.
   const previousSetup = setup.previousSetup || null;
+  const expectedUpdatedAt = setup.expectedUpdatedAt || null;
 
-  const updatePayload = {
-    [`slots.${slotIndex}.partNumber`]: setup.partNumber,
-    [`slots.${slotIndex}.qtyRemaining`]: setup.qtyRemaining,
-    [`slots.${slotIndex}.status`]: setup.status,
-    [`slots.${slotIndex}.notes`]: setup.notes,
-    [`slots.${slotIndex}.updatedAt`]: now,
-    [`slots.${slotIndex}.lastUpdatedBy`]: userName,
-    updatedAt: now,
-    lastUpdatedBy: userName
-  };
+  let conflictMeta = null;
 
-  await updateDoc(ref, updatePayload);
+  await runTransaction(db, async (transaction) => {
+    const snap = await transaction.get(ref);
+    if (!snap.exists()) {
+      throw new Error(`Press ${pressId} not found`);
+    }
+
+    const pressData = snap.data();
+    const rawSlots = pressData.slots || [];
+    const slots = Array.isArray(rawSlots) ? [...rawSlots] : Object.values(rawSlots);
+    const currentSlot = slots[slotIndex] || {};
+
+    const currentUpdatedAt = currentSlot.updatedAt || null;
+    const currentLastUpdatedBy = currentSlot.lastUpdatedBy || pressData.lastUpdatedBy || null;
+
+    if (expectedUpdatedAt && currentUpdatedAt && expectedUpdatedAt !== currentUpdatedAt) {
+      conflictMeta = {
+        lastUpdatedBy: currentLastUpdatedBy,
+        updatedAt: currentUpdatedAt
+      };
+      throw makeConflictError({
+        pressId,
+        slotIndex,
+        lastUpdatedBy: currentLastUpdatedBy,
+        updatedAt: currentUpdatedAt
+      });
+    }
+
+    const nextSlot = {
+      ...currentSlot,
+      partNumber: setup.partNumber,
+      qtyRemaining: setup.qtyRemaining,
+      status: setup.status,
+      notes: setup.notes,
+      updatedAt: now,
+      lastUpdatedBy: userName
+    };
+
+    slots[slotIndex] = nextSlot;
+
+    transaction.update(ref, {
+      slots,
+      updatedAt: now,
+      lastUpdatedBy: userName
+    });
+  });
 
   const message = buildLogMessage({
     pressId,
@@ -107,4 +152,10 @@ export async function updateSetupInFirestore({ pressId, slotIndex, setup, userNa
   });
 
   console.log(`✅ Updated ${pressId} slot ${slotIndex}`);
+
+  return {
+    ok: true,
+    conflict: false,
+    conflictMeta
+  };
 }
