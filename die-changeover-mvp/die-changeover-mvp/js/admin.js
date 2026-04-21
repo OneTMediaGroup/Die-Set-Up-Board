@@ -1,4 +1,5 @@
 import { fetchUsersFromFirestore, updateUserInFirestore } from './firestore-users.js';
+import { fetchPressesFromFirestore, setPressLockInFirestore, archiveAndResetPressInFirestore } from './firestore-press-admin.js';
 import { getSession, setSession } from './store.js';
 import { getStoredSessionUser, setStoredSessionUser } from './session-user.js';
 
@@ -8,15 +9,18 @@ const userCount = document.getElementById('adminUsersCount');
 const currentAdminUser = document.getElementById('currentAdminUser');
 
 let users = [];
+let presses = [];
 
 init();
 
 async function init() {
   renderCurrentAdminUser();
-  await loadUsers();
+  await Promise.all([loadUsers(), loadPressTools()]);
 
   if (refreshBtn) {
-    refreshBtn.addEventListener('click', loadUsers);
+    refreshBtn.addEventListener('click', async () => {
+      await Promise.all([loadUsers(), loadPressTools()]);
+    });
   }
 }
 
@@ -181,6 +185,149 @@ function handleLiveSessionUpdate(userId, role, status) {
   if (status !== 'active') {
     alert(`${updatedUser.name || 'This user'} has been set to inactive.`);
   }
+}
 
-  console.log('🔄 Live session updated:', updatedUser);
+async function loadPressTools() {
+  try {
+    presses = await fetchPressesFromFirestore();
+    renderPressTools();
+  } catch (error) {
+    console.error('❌ Failed to load presses for admin:', error);
+    renderPressToolsError();
+  }
+}
+
+function renderPressTools() {
+  const pressCard = document.querySelector('.grid-2 .card:first-child');
+  const controlsCard = document.querySelector('.grid-2 .card:last-child');
+  if (!pressCard || !controlsCard) return;
+
+  pressCard.innerHTML = `
+    <div class="section-header">
+      <h2>Presses</h2>
+    </div>
+    <div class="muted" style="margin-bottom:14px;">Admin override tools for lock and reset.</div>
+
+    <label class="muted">Select Press</label>
+    <select id="adminPressSelect" style="margin-top:6px;">
+      ${presses.map((press) => `
+        <option value="${press.id}">
+          Press ${press.pressNumber} · ${press.area} · ${press.shift}${press.isLocked ? ' · LOCKED' : ''}
+        </option>
+      `).join('')}
+    </select>
+
+    <div id="adminPressSummary" class="muted" style="margin-top:12px;"></div>
+
+    <div style="display:flex; gap:12px; flex-wrap:wrap; margin-top:16px;">
+      <button id="adminToggleLockBtn" class="button">Lock / Unlock</button>
+      <button id="adminResetPressBtn" class="button">Archive + Reset Press</button>
+    </div>
+  `;
+
+  controlsCard.innerHTML = `
+    <div class="section-header">
+      <h2>System Controls</h2>
+    </div>
+    <div class="muted">Archive + reset clears all slots after saving the old state into pressArchives.</div>
+    <div class="muted" style="margin-top:10px;">Locked presses stay visible on the floor but cannot be changed by operators.</div>
+  `;
+
+  const select = document.getElementById('adminPressSelect');
+  const lockBtn = document.getElementById('adminToggleLockBtn');
+  const resetBtn = document.getElementById('adminResetPressBtn');
+
+  if (select) {
+    select.addEventListener('change', renderPressSummary);
+    renderPressSummary();
+  }
+
+  if (lockBtn) {
+    lockBtn.addEventListener('click', handleToggleLock);
+  }
+
+  if (resetBtn) {
+    resetBtn.addEventListener('click', handleResetPress);
+  }
+}
+
+function renderPressSummary() {
+  const select = document.getElementById('adminPressSelect');
+  const summary = document.getElementById('adminPressSummary');
+  const lockBtn = document.getElementById('adminToggleLockBtn');
+  if (!select || !summary || !lockBtn) return;
+
+  const press = presses.find((item) => item.id === select.value);
+  if (!press) return;
+
+  const activeCount = (press.slots || []).filter((slot) => slot.partNumber).length;
+  summary.textContent = `Press ${press.pressNumber} · ${activeCount} active setups · ${press.isLocked ? `Locked by ${press.lockedBy || 'Admin'}` : 'Unlocked'}`;
+  lockBtn.textContent = press.isLocked ? 'Unlock Press' : 'Lock Press';
+}
+
+async function handleToggleLock() {
+  const select = document.getElementById('adminPressSelect');
+  if (!select) return;
+
+  const session = getSession() || getStoredSessionUser() || { name: 'Admin' };
+  const press = presses.find((item) => item.id === select.value);
+  if (!press) return;
+
+  const targetState = !press.isLocked;
+  const confirmed = window.confirm(
+    `${targetState ? 'Lock' : 'Unlock'} Press ${press.pressNumber}?`
+  );
+  if (!confirmed) return;
+
+  try {
+    await setPressLockInFirestore({
+      pressId: press.id,
+      isLocked: targetState,
+      userName: session.name
+    });
+
+    await loadPressTools();
+  } catch (error) {
+    console.error('❌ Failed to toggle press lock:', error);
+    alert('Press lock update failed.');
+  }
+}
+
+async function handleResetPress() {
+  const select = document.getElementById('adminPressSelect');
+  if (!select) return;
+
+  const session = getSession() || getStoredSessionUser() || { name: 'Admin' };
+  const press = presses.find((item) => item.id === select.value);
+  if (!press) return;
+
+  const confirmed = window.confirm(
+    `Archive and reset Press ${press.pressNumber}?\n\nThis will save current slots into pressArchives, then clear the press.`
+  );
+  if (!confirmed) return;
+
+  try {
+    await archiveAndResetPressInFirestore({
+      pressId: press.id,
+      userName: session.name
+    });
+
+    await loadPressTools();
+    alert(`Press ${press.pressNumber} archived and reset.`);
+  } catch (error) {
+    console.error('❌ Failed to reset press:', error);
+    alert('Archive + reset failed.');
+  }
+}
+
+function renderPressToolsError() {
+  const pressCard = document.querySelector('.grid-2 .card:first-child');
+  if (!pressCard) return;
+
+  pressCard.innerHTML = `
+    <div class="section-header">
+      <h2>Presses</h2>
+    </div>
+    <div class="muted">Could not load press admin tools.</div>
+  `;
 }
