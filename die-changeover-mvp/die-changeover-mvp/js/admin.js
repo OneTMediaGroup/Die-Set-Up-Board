@@ -12,7 +12,9 @@ init();
 
 function init() {
   loadUsers();
-  refreshBtn.addEventListener('click', loadUsers);
+  if (refreshBtn) {
+    refreshBtn.addEventListener('click', loadUsers);
+  }
 }
 
 async function loadUsers() {
@@ -25,9 +27,13 @@ async function loadUsers() {
 }
 
 function renderUsers() {
-  userCount.textContent = `Count: ${users.length}`;
+  if (userCount) {
+    userCount.textContent = `Count: ${users.length}`;
+  }
 
-  usersContainer.innerHTML = users.map(user => `
+  if (!usersContainer) return;
+
+  usersContainer.innerHTML = users.map((user) => `
     <div class="user-card">
       <strong>${user.name}</strong>
       <div>User ID: ${user.id}</div>
@@ -50,6 +56,7 @@ function renderUsers() {
       </div>
 
       <button data-save="${user.id}" class="button primary">Save User</button>
+      <div class="muted" style="margin-top:8px;">Current role: ${user.role}</div>
     </div>
   `).join('');
 
@@ -57,21 +64,26 @@ function renderUsers() {
 }
 
 function wireSaveButtons() {
-  document.querySelectorAll('[data-save]').forEach(btn => {
+  document.querySelectorAll('[data-save]').forEach((btn) => {
     btn.addEventListener('click', async () => {
       const userId = btn.dataset.save;
+      const roleSelect = document.querySelector(`[data-role="${userId}"]`);
+      const statusSelect = document.querySelector(`[data-status="${userId}"]`);
+      if (!roleSelect || !statusSelect) return;
 
-      const role = document.querySelector(`[data-role="${userId}"]`).value;
-      const status = document.querySelector(`[data-status="${userId}"]`).value;
+      const role = roleSelect.value;
+      const status = statusSelect.value;
 
       try {
         await updateUserInFirestore(userId, { role, status });
-
         handleLiveSessionUpdate(userId, role, status);
 
         btn.textContent = 'Saved ✓';
-        setTimeout(() => (btn.textContent = 'Save User'), 1200);
+        setTimeout(() => {
+          btn.textContent = 'Save User';
+        }, 1200);
 
+        await loadUsers();
       } catch (err) {
         console.error('❌ Failed to save user:', err);
         alert('Save failed');
@@ -81,18 +93,22 @@ function wireSaveButtons() {
 }
 
 function handleLiveSessionUpdate(userId, role, status) {
-  const current = getSession();
+  const current = getSession() || getStoredSessionUser();
   if (!current || current.id !== userId) return;
 
-  const updatedUser = { ...current, role, status };
-
-  // if user is deactivated → force downgrade
-  if (status !== 'active') {
-    alert('Your account has been deactivated.');
-  }
+  const updatedUser = {
+    ...current,
+    role,
+    status,
+    isActive: status === 'active'
+  };
 
   setSession(updatedUser);
   setStoredSessionUser(updatedUser);
+
+  if (status !== 'active') {
+    alert(`${updatedUser.name || 'This user'} has been set to inactive.`);
+  }
 
   console.log('🔄 Live session updated:', updatedUser);
 }
