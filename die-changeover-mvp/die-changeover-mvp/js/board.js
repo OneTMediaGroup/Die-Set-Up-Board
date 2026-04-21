@@ -151,10 +151,18 @@ async function handleQuickComplete(pressId, slotIndex) {
         qtyRemaining: slot.qtyRemaining,
         status: 'change_complete',
         notes: slot.notes || '',
-        previousSetup: slot
+        previousSetup: slot,
+        expectedUpdatedAt: slot.updatedAt || null
       }
     });
   } catch (error) {
+    if (error?.code === 'slot-conflict') {
+      alert(
+        `This slot was updated by ${error.lastUpdatedBy || 'another user'} before Quick Complete.\n\nPlease review the latest data and try again.`
+      );
+      return;
+    }
+
     console.error('❌ Quick complete failed:', error);
     alert('Quick Complete failed. Please try again.');
   }
@@ -330,7 +338,8 @@ async function handleDialogAction(action) {
           qtyRemaining: 0,
           status: 'not_running',
           notes: '',
-          previousSetup: slot
+          previousSetup: slot,
+          expectedUpdatedAt: slot.updatedAt || null
         }
       });
     } else {
@@ -343,13 +352,21 @@ async function handleDialogAction(action) {
           qtyRemaining: slot.qtyRemaining,
           status: action === 'save_notes' ? slot.status : action,
           notes: dialogNotes.value.trim(),
-          previousSetup: slot
+          previousSetup: slot,
+          expectedUpdatedAt: slot.updatedAt || null
         }
       });
     }
 
     setupDialog.close();
   } catch (error) {
+    if (error?.code === 'slot-conflict') {
+      alert(
+        `This slot was updated by ${error.lastUpdatedBy || 'another user'} before your change.\n\nPlease review the latest data and try again.`
+      );
+      return;
+    }
+
     console.error('❌ Board action failed:', error);
     alert('Update failed. Please try again.');
   } finally {
