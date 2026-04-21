@@ -6,65 +6,85 @@
   <title>Admin / Maintenance</title>
   <link rel="stylesheet" href="css/styles.css" />
 </head>
+
 <body>
   <div class="app-shell">
+
+    <!-- SIDEBAR -->
     <aside class="sidebar dark">
       <div class="brand-logo large">MAGNA</div>
+
       <nav>
         <a class="nav-link" href="board.html">Die Setter Board</a>
         <a class="nav-link" href="supervisor.html">Supervisor</a>
         <a class="nav-link active" href="admin.html">Admin / Maintenance</a>
         <a class="nav-link" href="index.html">Home</a>
       </nav>
+
       <div class="sidebar-footer">
-        <div id="currentUserAdmin" class="user-pill">Admin Demo</div>
+        <div id="currentAdminUser" class="user-pill">Loading...</div>
       </div>
     </aside>
 
+    <!-- MAIN -->
     <main class="main-content">
+
       <header class="topbar">
         <div>
           <h1>Admin / Maintenance</h1>
-          <p class="muted">Manage presses, users, and status definitions</p>
+          <p class="muted">System control, users, and operations</p>
         </div>
       </header>
 
-      <section class="grid-3">
-        <div class="card">
-          <div class="section-header">
-            <h2>Users</h2>
-            <button id="seedUsersBtn" class="button">Seed Demo Users</button>
-          </div>
-          <div id="usersList" class="admin-list"></div>
-        </div>
-
-        <div class="card">
-          <div class="section-header">
-            <h2>Presses</h2>
-            <button id="seedPressesBtn" class="button">Seed Presses</button>
-          </div>
-          <div id="pressesList" class="admin-list"></div>
-        </div>
-
-        <div class="card">
-          <div class="section-header">
-            <h2>Status Types</h2>
-            <button id="seedStatusesBtn" class="button">Seed Statuses</button>
-          </div>
-          <div id="statusesList" class="admin-list"></div>
-        </div>
-      </section>
-
+      <!-- USERS (MAIN FEATURE NOW) -->
       <section class="card">
-        <div class="section-header">
-          <h2>Audit Log</h2>
-          <button id="refreshAdminBtn" class="button">Refresh</button>
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+          
+          <div>
+            <h2>Users</h2>
+            <p class="muted">Manage roles and access</p>
+          </div>
+
+          <div style="display:flex; align-items:center; gap:12px;">
+            <span class="muted">Count: <strong id="adminUsersCount">0</strong></span>
+            <button id="refreshAdminUsersBtn" class="button">Refresh</button>
+          </div>
+
         </div>
-        <div id="auditLog" class="history-list"></div>
+
+        <div id="adminUsersList" style="display:grid; gap:16px; margin-top:16px;"></div>
       </section>
+
+      <!-- FUTURE BLOCKS (we keep structure ready but inactive) -->
+
+      <section class="grid-2">
+
+        <div class="card">
+          <div class="section-header">
+            <h2>Presses (Next)</h2>
+          </div>
+          <div class="muted">
+            Press configuration coming next step.
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="section-header">
+            <h2>System Controls (Next)</h2>
+          </div>
+          <div class="muted">
+            Reset, clear, and archive controls coming next.
+          </div>
+        </div>
+
+      </section>
+
     </main>
   </div>
-<script type="module" src="js/firebase-config.js"></script>
+
+  <!-- SCRIPTS -->
+  <script type="module" src="js/firebase-config.js"></script>
   <script type="module" src="js/admin.js"></script>
+
 </body>
 </html>
