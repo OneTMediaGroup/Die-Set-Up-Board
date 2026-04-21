@@ -1,4 +1,4 @@
-import { initStore, getSession, setSession } from './store.js';
+import { isSupervisor, isAdmin } from './roles.js';import { initStore, getSession, setSession } from './store.js';
 import { formatDateTime, formatTime, statusLabel } from './utils.js';
 import { watchPressesFromFirestore } from './firestore-presses.js';
 import { updateSetupInFirestore } from './firestore-write.js';
@@ -260,7 +260,41 @@ function wireEvents() {
     render();
   });
 
+if (isSupervisor() || isAdmin()) {
   setupForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+
+    const session = getSession() || { name: 'Supervisor Demo' };
+    const validated = validateSetupForm();
+    if (!validated) return;
+
+    const press = presses.find((p) => p.id === pressSelect.value);
+    const currentSlot = press ? getSlotsArray(press)[Number(slotSelect.value)] : null;
+
+    try {
+      await updateSetupInFirestore({
+        pressId: pressSelect.value,
+        slotIndex: Number(slotSelect.value),
+        userName: session.name,
+        setup: {
+          partNumber: validated.partNumber,
+          qtyRemaining: validated.qtyRemaining,
+          status: 'not_running',
+          notes: validated.notes,
+          previousSetup: currentSlot || null,
+          expectedUpdatedAt: currentSlot?.updatedAt || null
+        }
+      });
+
+      autofillForm();
+    } catch (error) {
+      console.error('❌ Supervisor submit failed:', error);
+    }
+  });
+} else {
+  setupForm.style.display = 'none';
+}
+  
     event.preventDefault();
 
     const session = getSession() || { name: 'Supervisor Demo' };
