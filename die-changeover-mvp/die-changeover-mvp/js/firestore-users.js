@@ -12,14 +12,23 @@ export async function fetchUsersFromFirestore() {
 
   snapshot.forEach((item) => {
     const data = item.data();
+
     users.push({
       id: item.id,
-      ...data,
-      status: data.status || (data.isActive === false ? 'inactive' : 'active')
+      name: data.name || '',
+      role: data.role || 'dieSetter',
+      status: data.status || (data.isActive === false ? 'inactive' : 'active'),
+      isActive: data.isActive !== false,
+      createdAt: data.createdAt || null,
+      updatedAt: data.updatedAt || null
     });
   });
 
-  return users.sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+  console.log('🔥 fetchUsersFromFirestore result:', users);
+
+  return users.sort((a, b) =>
+    String(a.name || '').localeCompare(String(b.name || ''))
+  );
 }
 
 export async function updateUserInFirestore(userId, updates) {
