@@ -18,6 +18,7 @@ let selected = null;
 let presses = [];
 let unsubscribePresses = null;
 let isSubmitting = false;
+let dialogOpenedAt = null;
 
 bootstrapSession();
 wireDialog();
@@ -45,6 +46,41 @@ function getSelectedPressAndSlot() {
   if (!slot) return null;
 
   return { press, slot };
+}
+
+function ensureDialogNotice() {
+  let notice = document.getElementById('dialogStaleNotice');
+  if (notice) return notice;
+
+  notice = document.createElement('div');
+  notice.id = 'dialogStaleNotice';
+  notice.className = 'muted';
+  notice.style.display = 'none';
+  notice.style.marginTop = '8px';
+  notice.style.padding = '10px 12px';
+  notice.style.border = '1px solid rgba(255,255,255,0.15)';
+  notice.style.borderRadius = '10px';
+  notice.style.background = 'rgba(255,255,255,0.05)';
+  notice.style.color = '#ffd7a8';
+
+  const subtitle = document.getElementById('dialogSubtitle');
+  if (subtitle && subtitle.parentElement) {
+    subtitle.parentElement.insertAdjacentElement('afterend', notice);
+  }
+
+  return notice;
+}
+
+function showDialogNotice(message) {
+  const notice = ensureDialogNotice();
+  notice.textContent = message;
+  notice.style.display = 'block';
+}
+
+function hideDialogNotice() {
+  const notice = ensureDialogNotice();
+  notice.textContent = '';
+  notice.style.display = 'none';
 }
 
 function startPressWatcher() {
@@ -177,6 +213,8 @@ function openSetup(pressId, slotIndex) {
   if (!slot) return;
 
   selected = { pressId, slotIndex, pressNumber: press.pressNumber };
+  dialogOpenedAt = slot.updatedAt || null;
+  hideDialogNotice();
   fillDialog(press, slot, slotIndex);
   setupDialog.showModal();
 }
@@ -187,6 +225,12 @@ function refreshOpenDialog() {
 
   const { press, slot } = data;
   fillDialog(press, slot, selected.slotIndex);
+
+  if (dialogOpenedAt && slot.updatedAt && slot.updatedAt !== dialogOpenedAt) {
+    showDialogNotice(
+      `Updated by ${slot.lastUpdatedBy || 'another user'} at ${formatDateTime(slot.updatedAt)}`
+    );
+  }
 }
 
 function fillDialog(press, slot, slotIndex) {
@@ -240,6 +284,8 @@ function wireDialog() {
   setupDialog.addEventListener('close', () => {
     selected = null;
     isSubmitting = false;
+    dialogOpenedAt = null;
+    hideDialogNotice();
     setDialogBusyState(false);
   });
 }
