@@ -3,6 +3,8 @@ import { formatDateTime, formatTime, statusLabel } from './utils.js';
 import { watchPressesFromFirestore } from './firestore-presses.js';
 import { updateSetupInFirestore } from './firestore-write.js';
 import { watchLogsFromFirestore } from './firestore-logs.js';
+import { fetchUsersFromFirestore } from './firestore-users.js';
+import { getStoredSessionUser, setStoredSessionUser } from './session-user.js';
 
 initStore();
 
@@ -28,10 +30,33 @@ wireEvents();
 startPressWatcher();
 startLogWatcher();
 
-function bootstrapSession() {
-  const session = getSession() || { id: 'u2', name: 'Sully T.', role: 'supervisor' };
-  setSession(session);
-  currentUserSupervisor.textContent = `${session.name} · ${session.role}`;
+async function bootstrapSession() {
+  const storedUser = getStoredSessionUser();
+
+  if (storedUser) {
+    setSession(storedUser);
+    currentUserSupervisor.textContent = `${storedUser.name} · ${storedUser.role}`;
+    return;
+  }
+
+  try {
+    const users = await fetchUsersFromFirestore();
+    const defaultUser = users.find((user) => user.role === 'supervisor') || users[0] || {
+      id: 'u2',
+      name: 'Sully T.',
+      role: 'supervisor'
+    };
+
+    setStoredSessionUser(defaultUser);
+    setSession(defaultUser);
+    currentUserSupervisor.textContent = `${defaultUser.name} · ${defaultUser.role}`;
+  } catch (error) {
+    console.error('❌ Failed loading users:', error);
+
+    const fallbackUser = { id: 'u2', name: 'Sully T.', role: 'supervisor' };
+    setSession(fallbackUser);
+    currentUserSupervisor.textContent = `${fallbackUser.name} · ${fallbackUser.role}`;
+  }
 }
 
 function getSlotsArray(press) {
