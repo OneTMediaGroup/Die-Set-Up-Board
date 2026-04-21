@@ -12,6 +12,7 @@ init();
 
 function init() {
   loadUsers();
+
   if (refreshBtn) {
     refreshBtn.addEventListener('click', loadUsers);
   }
@@ -20,6 +21,7 @@ function init() {
 async function loadUsers() {
   try {
     users = await fetchUsersFromFirestore();
+    console.log('🔥 Admin users loaded:', users);
     renderUsers();
   } catch (err) {
     console.error('❌ Failed to load users:', err);
@@ -31,12 +33,32 @@ function renderUsers() {
     userCount.textContent = `Count: ${users.length}`;
   }
 
-  if (!usersContainer) return;
+  if (!usersContainer) {
+    console.error('❌ usersContainer element not found');
+    return;
+  }
+
+  if (!users.length) {
+    usersContainer.innerHTML = `
+      <div class="user-card">
+        <strong>No users found</strong>
+        <div class="muted">Firestore returned zero users.</div>
+      </div>
+    `;
+    return;
+  }
 
   usersContainer.innerHTML = users.map((user) => `
     <div class="user-card">
-      <strong>${user.name}</strong>
-      <div>User ID: ${user.id}</div>
+      <div style="display:flex; justify-content:space-between; gap:12px; align-items:center;">
+        <div>
+          <strong>${user.name}</strong>
+          <div>User ID: ${user.id}</div>
+        </div>
+        <span class="status-pill ${user.status === 'active' ? 'running' : 'blocked'}">
+          ${user.status === 'active' ? 'Active' : 'Inactive'}
+        </span>
+      </div>
 
       <div class="user-row">
         <label>Role</label>
@@ -69,6 +91,7 @@ function wireSaveButtons() {
       const userId = btn.dataset.save;
       const roleSelect = document.querySelector(`[data-role="${userId}"]`);
       const statusSelect = document.querySelector(`[data-status="${userId}"]`);
+
       if (!roleSelect || !statusSelect) return;
 
       const role = roleSelect.value;
