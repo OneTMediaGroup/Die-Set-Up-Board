@@ -5,6 +5,7 @@ import { watchPressesFromFirestore } from './firestore-presses.js';
 import { updateSetupInFirestore } from './firestore-write.js';
 import { fetchUsersFromFirestore } from './firestore-users.js';
 import { getStoredSessionUser, setStoredSessionUser } from './session-user.js';
+import { enforceActiveSession } from './access-guard.js';
 
 initStore();
 
@@ -26,6 +27,7 @@ let dialogOpenedAt = null;
 bootstrapSession();
 wireDialog();
 startPressWatcher();
+startAccessGuard();
 
 async function bootstrapSession() {
   const storedUser = getStoredSessionUser();
@@ -41,7 +43,8 @@ async function bootstrapSession() {
     const defaultUser = users.find((user) => user.role === 'dieSetter') || users[0] || {
       id: 'u1',
       name: 'Bab S.',
-      role: 'dieSetter'
+      role: 'dieSetter',
+      status: 'active'
     };
 
     setStoredSessionUser(defaultUser);
@@ -50,10 +53,25 @@ async function bootstrapSession() {
   } catch (error) {
     console.error('❌ Failed loading users:', error);
 
-    const fallbackUser = { id: 'u1', name: 'Bab S.', role: 'dieSetter' };
+    const fallbackUser = { id: 'u1', name: 'Bab S.', role: 'dieSetter', status: 'active' };
     setSession(fallbackUser);
     currentUserBoard.textContent = `${fallbackUser.name} · ${fallbackUser.role}`;
   }
+}
+
+function startAccessGuard() {
+  enforceActiveSession().then((result) => {
+    if (result?.user) {
+      currentUserBoard.textContent = `${result.user.name} · ${result.user.role}`;
+    }
+  });
+
+  window.setInterval(async () => {
+    const result = await enforceActiveSession();
+    if (result?.user) {
+      currentUserBoard.textContent = `${result.user.name} · ${result.user.role}`;
+    }
+  }, 5000);
 }
 
 function getSlotsArray(press) {
