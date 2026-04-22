@@ -5,6 +5,7 @@ import { watchPressesFromFirestore } from './firestore-presses.js';
 import { updateSetupInFirestore } from './firestore-write.js';
 import { fetchUsersFromFirestore } from './firestore-users.js';
 import { getStoredSessionUser, setStoredSessionUser } from './session-user.js';
+import { mountUserSwitcher } from './user-switcher.js';
 
 initStore();
 
@@ -26,6 +27,11 @@ let dialogOpenedAt = null;
 bootstrapSession();
 wireDialog();
 startPressWatcher();
+mountUserSwitcher({
+  selectId: 'userSwitcher',
+  labelId: 'currentUserBoard',
+  allowedRoles: ['operator', 'dieSetter', 'admin', 'supervisor']
+});
 
 async function bootstrapSession() {
   const storedUser = getStoredSessionUser();
