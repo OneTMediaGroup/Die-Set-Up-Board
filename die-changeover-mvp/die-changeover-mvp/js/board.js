@@ -31,7 +31,7 @@ startPressWatcher();
 mountUserSwitcher({
   selectId: 'userSwitcher',
   labelId: 'currentUserBoard',
-  allowedRoles: ['operator', 'dieSetter', 'admin', 'supervisor']
+  allowedRoles: ['dieSetter', 'admin', 'supervisor']
 });
 
 async function bootstrapSession() {
@@ -47,22 +47,28 @@ async function bootstrapSession() {
     const users = await fetchUsersFromFirestore();
     const defaultUser =
       users.find((user) => user.role === 'dieSetter') ||
-      users.find((user) => user.role === 'operator') ||
+      users.find((user) => user.role === 'admin') ||
+      users.find((user) => user.role === 'supervisor') ||
       users[0];
 
-    setStoredSessionUser(defaultUser);
-    setSession(defaultUser);
-    currentUserBoard.textContent = `${defaultUser.name} · ${defaultUser.role}`;
+    if (defaultUser) {
+      setStoredSessionUser(defaultUser);
+      setSession(defaultUser);
+      currentUserBoard.textContent = `${defaultUser.name} · ${defaultUser.role}`;
+    } else {
+      currentUserBoard.textContent = 'Public touch screen';
+    }
   } catch {
-    const fallbackUser = { id: 'u1', name: 'Demo', role: 'operator' };
-    setSession(fallbackUser);
-    currentUserBoard.textContent = `${fallbackUser.name} · ${fallbackUser.role}`;
+    currentUserBoard.textContent = 'Public touch screen';
   }
 }
 
-function isOperator() {
+function getActionUserName() {
   const session = getSession();
-  return session?.role === 'operator';
+  if (session?.name && (isDieSetter() || isAdmin())) {
+    return session.name;
+  }
+  return 'Operator Station';
 }
 
 function getSlotsArray(press) {
@@ -70,16 +76,70 @@ function getSlotsArray(press) {
   return Object.values(press.slots || {});
 }
 
+function getSelectedPressAndSlot() {
+  if (!selected) return null;
+
+  const press = presses.find((item) => item.id === selected.pressId);
+  if (!press) return null;
+
+  const slots = getSlotsArray(press);
+  const slot = slots[selected.slotIndex];
+  if (!slot) return null;
+
+  return { press, slot };
+}
+
+function ensureDialogNotice() {
+  let notice = document.getElementById('dialogStaleNotice');
+  if (notice) return notice;
+
+  notice = document.createElement('div');
+  notice.id = 'dialogStaleNotice';
+  notice.className = 'muted';
+  notice.style.display = 'none';
+  notice.style.marginTop = '8px';
+  notice.style.padding = '10px 12px';
+  notice.style.border = '1px solid rgba(255,255,255,0.15)';
+  notice.style.borderRadius = '10px';
+  notice.style.background = 'rgba(255,255,255,0.05)';
+  notice.style.color = '#ffd7a8';
+
+  const subtitle = document.getElementById('dialogSubtitle');
+  if (subtitle && subtitle.parentElement) {
+    subtitle.parentElement.insertAdjacentElement('afterend', notice);
+  }
+
+  return notice;
+}
+
+function showDialogNotice(message) {
+  const notice = ensureDialogNotice();
+  notice.textContent = message;
+  notice.style.display = 'block';
+}
+
+function hideDialogNotice() {
+  const notice = ensureDialogNotice();
+  notice.textContent = '';
+  notice.style.display = 'none';
+}
+
 function startPressWatcher() {
   unsubscribePresses = watchPressesFromFirestore((livePresses) => {
-    presses = livePresses;
+    presses = livePresses.map((press) => ({
+      ...press,
+      isLocked: Boolean(press.isLocked)
+    }));
     renderBoard();
+
+    if (setupDialog.open && selected) {
+      refreshOpenDialog();
+    }
   });
 }
 
 function renderBoard() {
   const visiblePresses = filteredPresses();
-
   syncTimeBoard.textContent = new Date().toLocaleTimeString([], {
     hour: '2-digit',
     minute: '2-digit'
@@ -93,116 +153,142 @@ function renderBoard() {
         <div class="press-row-header">
           <div>
             <h3>Press ${press.pressNumber}</h3>
-            <div class="muted">${press.area} · Shift ${press.shift}</div>
+            <div class="muted">${press.area} · Shift ${press.shift}${press.isLocked ? ` · Locked by ${press.lockedBy || 'Admin'}` : ''}</div>
           </div>
-          <div class="muted">${slots.filter((s) => s.partNumber).length} active setups</div>
+          <div class="muted">${slots.filter((slot) => slot.partNumber).length} active setups</div>
         </div>
-
         <div class="slot-grid">
-          ${slots.map((slot, i) => renderSlot(press, slot, i)).join('')}
+          ${slots.map((slot, slotIndex) => renderSlot(press, slot, slotIndex)).join('')}
         </div>
       </article>
     `;
   }).join('');
 
-  wireActions();
+  pressGrid.querySelectorAll('[data-open-setup]').forEach((button) => {
+    button.addEventListener('click', () => openSetup(button.dataset.pressId, Number(button.dataset.slotIndex)));
+  });
+
+  pressGrid.querySelectorAll('[data-quick-complete]').forEach((button) => {
+    button.addEventListener('click', async (event) => {
+      event.stopPropagation();
+      await handleQuickComplete(button.dataset.pressId, Number(button.dataset.slotIndex));
+    });
+  });
+
+  pressGrid.querySelectorAll('[data-ready]').forEach((button) => {
+    button.addEventListener('click', async (event) => {
+      event.stopPropagation();
+      await handleReadyForChangeover(button.dataset.pressId, Number(button.dataset.slotIndex));
+    });
+  });
 }
 
 function renderSlot(press, slot, slotIndex) {
   const empty = !slot.partNumber;
-
-  let status = empty ? 'no_setup' : slot.status;
-
-  // 👇 NEW STATUS
-  if (status === 'ready_for_changeover') {
-    status = 'ready_for_changeover';
-  }
-
-  const canAct = isDieSetter() || isAdmin();
-  const operatorCanAct = isOperator() && !empty;
+  const displayStatus = empty ? 'no_setup' : slot.status;
+  const canAct = (isDieSetter() || isAdmin()) && !press.isLocked;
+  const canPublicReady = !press.isLocked && !empty && slot.status !== 'ready_for_changeover';
+  const showQuickComplete = canAct && !empty && slot.status !== 'change_complete';
+  const emptyClass = empty ? ' empty-slot-card' : '';
+  const lockedBadge = press.isLocked ? `<div class="muted" style="margin-bottom:8px;">🔒 Press locked</div>` : '';
 
   return `
-    <section class="slot-card ${empty ? 'empty-slot-card' : ''}">
-      
+    <section class="slot-card${emptyClass}">
       <div class="slot-header">
         <h4>Slot ${slotIndex + 1}</h4>
-        <span class="status-pill ${status}">
-          ${empty ? 'No Setup' : statusLabel(slot.status)}
-        </span>
+        <span class="status-pill ${displayStatus}">${empty ? 'No Setup' : statusLabel(slot.status)}</span>
       </div>
-
       <div class="slot-meta">
-        <div class="meta-box">
-          <span>Part</span>
-          <strong>${slot.partNumber || '—'}</strong>
-        </div>
-
-        <div class="meta-box">
-          <span>Qty</span>
-          <strong>${slot.partNumber ? slot.qtyRemaining : '—'}</strong>
-        </div>
+        <div class="meta-box"><span>Part</span><strong>${slot.partNumber || '—'}</strong></div>
+        <div class="meta-box"><span>Qty</span><strong>${slot.partNumber ? slot.qtyRemaining : '—'}</strong></div>
       </div>
-
       <div class="slot-note">${slot.notes || 'No notes added.'}</div>
-
-      <div class="muted">
-        Last updated by ${slot.lastUpdatedBy || '—'}
-      </div>
-
+      <div class="muted">Last updated by ${slot.lastUpdatedBy || press.lastUpdatedBy || '—'}</div>
+      ${lockedBadge}
       <div class="slot-actions">
-
         ${
-          operatorCanAct
-            ? `<button class="button full" data-ready data-press-id="${press.id}" data-slot-index="${slotIndex}">
-                Ready for Changeover
-               </button>`
+          canPublicReady
+            ? `<button class="button full" data-ready data-press-id="${press.id}" data-slot-index="${slotIndex}">Ready for Changeover</button>`
             : ''
         }
-
+        ${
+          showQuickComplete
+            ? `<button class="button full" data-quick-complete data-press-id="${press.id}" data-slot-index="${slotIndex}">Quick Complete</button>`
+            : ''
+        }
         ${
           canAct
             ? `<button class="button primary full" data-open-setup data-press-id="${press.id}" data-slot-index="${slotIndex}">
                 ${empty ? 'View Notes' : 'Open Actions'}
-               </button>`
+              </button>`
             : ''
         }
-
       </div>
-
       <div class="muted">Updated ${formatTime(slot.updatedAt)}</div>
-
     </section>
   `;
 }
 
-function wireActions() {
-  // open dialog
-  document.querySelectorAll('[data-open-setup]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      openSetup(btn.dataset.pressId, Number(btn.dataset.slotIndex));
-    });
-  });
+async function handleReadyForChangeover(pressId, slotIndex) {
+  const press = presses.find((item) => item.id === pressId);
+  if (!press || press.isLocked) {
+    alert('This press is locked by Admin.');
+    return;
+  }
 
-  // 👇 NEW operator action
-  document.querySelectorAll('[data-ready]').forEach((btn) => {
-    btn.addEventListener('click', async (e) => {
-      e.stopPropagation();
-      await handleReady(btn.dataset.pressId, Number(btn.dataset.slotIndex));
-    });
-  });
-}
-
-async function handleReady(pressId, slotIndex) {
-  const session = getSession() || { name: 'Operator' };
-
-  const press = presses.find((p) => p.id === pressId);
-  if (!press) return;
-
-  const slot = getSlotsArray(press)[slotIndex];
+  const slots = getSlotsArray(press);
+  const slot = slots[slotIndex];
   if (!slot || !slot.partNumber) return;
+  if (slot.status === 'ready_for_changeover') return;
 
   const confirmed = window.confirm(
     `Mark Press ${press.pressNumber} Slot ${slotIndex + 1} as READY FOR CHANGEOVER?`
+  );
+
+  if (!confirmed) return;
+
+  try {
+    await updateSetupInFirestore({
+      pressId,
+      slotIndex,
+      userName: getActionUserName(),
+      setup: {
+        partNumber: slot.partNumber,
+        qtyRemaining: slot.qtyRemaining,
+        status: 'ready_for_changeover',
+        notes: slot.notes || '',
+        previousSetup: slot,
+        expectedUpdatedAt: slot.updatedAt || null
+      }
+    });
+  } catch (error) {
+    if (error?.code === 'slot-conflict') {
+      alert(
+        `This slot was updated by ${error.lastUpdatedBy || 'another user'} before marking ready.\n\nPlease review the latest data and try again.`
+      );
+      return;
+    }
+
+    console.error('❌ Ready for changeover failed:', error);
+    alert('Ready for Changeover failed. Please try again.');
+  }
+}
+
+async function handleQuickComplete(pressId, slotIndex) {
+  const session = getSession() || { name: 'Demo User' };
+  const press = presses.find((item) => item.id === pressId);
+  if (!press || press.isLocked) {
+    alert('This press is locked by Admin.');
+    return;
+  }
+
+  const slots = getSlotsArray(press);
+  const slot = slots[slotIndex];
+  if (!slot || !slot.partNumber) return;
+  if (slot.status === 'change_complete') return;
+
+  const confirmed = window.confirm(
+    `Mark Press ${press.pressNumber} Slot ${slotIndex + 1} as Complete?\n\nPart: ${slot.partNumber}`
   );
 
   if (!confirmed) return;
@@ -215,54 +301,256 @@ async function handleReady(pressId, slotIndex) {
       setup: {
         partNumber: slot.partNumber,
         qtyRemaining: slot.qtyRemaining,
-        status: 'ready_for_changeover',
+        status: 'change_complete',
         notes: slot.notes || '',
         previousSetup: slot,
         expectedUpdatedAt: slot.updatedAt || null
       }
     });
-  } catch (err) {
-    console.error('❌ Ready action failed:', err);
-    alert('Failed to mark ready.');
+  } catch (error) {
+    if (error?.code === 'slot-conflict') {
+      alert(
+        `This slot was updated by ${error.lastUpdatedBy || 'another user'} before Quick Complete.\n\nPlease review the latest data and try again.`
+      );
+      return;
+    }
+
+    console.error('❌ Quick complete failed:', error);
+    alert('Quick Complete failed. Please try again.');
   }
 }
 
 function openSetup(pressId, slotIndex) {
-  const press = presses.find((p) => p.id === pressId);
+  const press = presses.find((item) => item.id === pressId);
   if (!press) return;
 
-  const slot = getSlotsArray(press)[slotIndex];
+  if (press.isLocked && !isAdmin()) {
+    alert('This press is locked by Admin.');
+    return;
+  }
+
+  const slots = getSlotsArray(press);
+  const slot = slots[slotIndex];
   if (!slot) return;
 
-  selected = { pressId, slotIndex };
-
-  document.getElementById('dialogTitle').textContent =
-    `Press ${press.pressNumber} · Slot ${slotIndex + 1}`;
-
-  dialogNotes.value = slot.notes || '';
+  selected = { pressId, slotIndex, pressNumber: press.pressNumber };
+  dialogOpenedAt = slot.updatedAt || null;
+  hideDialogNotice();
+  fillDialog(press, slot, slotIndex);
   setupDialog.showModal();
 }
 
+function refreshOpenDialog() {
+  const data = getSelectedPressAndSlot();
+  if (!data) return;
+
+  const { press, slot } = data;
+  fillDialog(press, slot, selected.slotIndex);
+
+  if (dialogOpenedAt && slot.updatedAt && slot.updatedAt !== dialogOpenedAt) {
+    showDialogNotice(
+      `Updated by ${slot.lastUpdatedBy || 'another user'} at ${formatDateTime(slot.updatedAt)}`
+    );
+  }
+}
+
+function fillDialog(press, slot, slotIndex) {
+  const empty = !slot.partNumber;
+
+  document.getElementById('dialogTitle').textContent = `Press ${press.pressNumber} · Slot ${slotIndex + 1}`;
+  document.getElementById('dialogSubtitle').textContent = `${press.area} · Shift ${press.shift}${press.isLocked ? ' · LOCKED' : ''}`;
+  document.getElementById('dialogPart').textContent = slot.partNumber || '—';
+  document.getElementById('dialogQty').textContent = slot.partNumber ? String(slot.qtyRemaining) : '—';
+  document.getElementById('dialogStatus').textContent = slot.partNumber ? statusLabel(slot.status) : 'No setup';
+  document.getElementById('dialogUpdated').textContent = formatDateTime(slot.updatedAt);
+  dialogNotes.value = slot.notes || '';
+
+  updateDialogActionState(empty || press.isLocked);
+}
+
+function updateDialogActionState(empty) {
+  document.querySelectorAll('[data-action]').forEach((button) => {
+    const action = button.dataset.action;
+    const isNotesOnly = action === 'save_notes';
+
+    if (empty) {
+      button.disabled = !isNotesOnly;
+      button.title = isNotesOnly ? '' : 'This slot cannot be changed right now.';
+    } else {
+      button.disabled = false;
+      button.title = action === 'clear' ? 'This will remove the setup from this slot.' : '';
+    }
+  });
+}
+
 function wireDialog() {
-  setupDialog.addEventListener('close', () => {
-    selected = null;
+  document.querySelectorAll('[data-action]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      await handleDialogAction(button.dataset.action);
+    });
+  });
+
+  document.querySelectorAll('.chip').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      dialogNotes.value = dialogNotes.value
+        ? `${dialogNotes.value}\n${chip.dataset.note}`
+        : chip.dataset.note;
+    });
   });
 
   areaFilterBoard.addEventListener('change', renderBoard);
   shiftFilterBoard.addEventListener('change', renderBoard);
   refreshBoardBtn.addEventListener('click', renderBoard);
+
+  setupDialog.addEventListener('close', () => {
+    selected = null;
+    isSubmitting = false;
+    dialogOpenedAt = null;
+    hideDialogNotice();
+    setDialogBusyState(false);
+  });
+}
+
+function setDialogBusyState(isBusy) {
+  document.querySelectorAll('[data-action]').forEach((button) => {
+    if (button.dataset.action === 'save_notes') {
+      button.disabled = isBusy;
+      return;
+    }
+
+    const data = getSelectedPressAndSlot();
+    const empty = !data || !data.slot.partNumber || data.press.isLocked;
+
+    if (empty && button.dataset.action !== 'save_notes') {
+      button.disabled = true;
+    } else {
+      button.disabled = isBusy;
+    }
+  });
+
+  if (dialogNotes) {
+    dialogNotes.disabled = isBusy;
+  }
+}
+
+function requireBlockReason() {
+  const reason = dialogNotes.value.trim();
+
+  if (reason) return true;
+
+  alert(
+    'Please add a reason before flagging Maintenance.\n\nExamples:\n- Tooling issue\n- Material missing\n- Machine fault\n- Waiting on maintenance'
+  );
+
+  dialogNotes.focus();
+  return false;
+}
+
+async function handleDialogAction(action) {
+  if (!selected || isSubmitting) return;
+
+  const session = getSession() || { name: 'Demo User' };
+  const data = getSelectedPressAndSlot();
+  if (!data) return;
+
+  const { slot, press } = data;
+  const empty = !slot.partNumber;
+
+  if (press.isLocked && !isAdmin()) {
+    alert('This press is locked by Admin.');
+    return;
+  }
+
+  if (empty && action !== 'save_notes') {
+    alert('This slot has no active setup yet. Use the supervisor screen to add one first.');
+    return;
+  }
+
+  if (action === 'blocked' && !requireBlockReason()) {
+    return;
+  }
+
+  if (action === 'clear') {
+    const confirmed = window.confirm(
+      `Clear setup for Press ${selected.pressNumber} Slot ${selected.slotIndex + 1}?\n\nThis removes the part number, quantity, status, and notes from this slot.`
+    );
+
+    if (!confirmed) return;
+  }
+
+  const actionLabels = {
+    running: 'mark this setup as Running',
+    change_in_progress: 'mark this setup as In Progress',
+    change_complete: 'mark this setup as Complete',
+    blocked: 'flag this setup for Maintenance',
+    save_notes: 'save these notes',
+    clear: 'clear this setup'
+  };
+
+  const confirmationNeeded = action !== 'save_notes' && action !== 'clear';
+  if (confirmationNeeded) {
+    const confirmed = window.confirm(
+      `Confirm: ${actionLabels[action] || 'apply this action'} for Press ${selected.pressNumber} Slot ${selected.slotIndex + 1}?`
+    );
+
+    if (!confirmed) return;
+  }
+
+  try {
+    isSubmitting = true;
+    setDialogBusyState(true);
+
+    if (action === 'clear') {
+      await updateSetupInFirestore({
+        pressId: selected.pressId,
+        slotIndex: selected.slotIndex,
+        userName: session.name,
+        setup: {
+          partNumber: '',
+          qtyRemaining: 0,
+          status: 'not_running',
+          notes: '',
+          previousSetup: slot,
+          expectedUpdatedAt: slot.updatedAt || null
+        }
+      });
+    } else {
+      await updateSetupInFirestore({
+        pressId: selected.pressId,
+        slotIndex: selected.slotIndex,
+        userName: session.name,
+        setup: {
+          partNumber: slot.partNumber,
+          qtyRemaining: slot.qtyRemaining,
+          status: action === 'save_notes' ? slot.status : action,
+          notes: dialogNotes.value.trim(),
+          previousSetup: slot,
+          expectedUpdatedAt: slot.updatedAt || null
+        }
+      });
+    }
+
+    setupDialog.close();
+  } catch (error) {
+    if (error?.code === 'slot-conflict') {
+      alert(
+        `This slot was updated by ${error.lastUpdatedBy || 'another user'} before your change.\n\nPlease review the latest data and try again.`
+      );
+      return;
+    }
+
+    console.error('❌ Board action failed:', error);
+    alert('Update failed. Please try again.');
+  } finally {
+    isSubmitting = false;
+    setDialogBusyState(false);
+  }
 }
 
 function filteredPresses() {
   return presses.filter((press) => {
-    const areaMatch =
-      areaFilterBoard.value === 'all' ||
-      press.area === areaFilterBoard.value;
-
-    const shiftMatch =
-      shiftFilterBoard.value === 'all' ||
-      press.shift === shiftFilterBoard.value;
-
+    const areaMatch = areaFilterBoard.value === 'all' || press.area === areaFilterBoard.value;
+    const shiftMatch = shiftFilterBoard.value === 'all' || press.shift === shiftFilterBoard.value;
     return areaMatch && shiftMatch;
   });
 }
