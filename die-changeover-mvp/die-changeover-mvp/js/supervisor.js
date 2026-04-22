@@ -6,6 +6,7 @@ import { updateSetupInFirestore } from './firestore-write.js';
 import { watchLogsFromFirestore } from './firestore-logs.js';
 import { fetchUsersFromFirestore } from './firestore-users.js';
 import { getStoredSessionUser, setStoredSessionUser } from './session-user.js';
+import { mountUserSwitcher } from './user-switcher.js';
 
 initStore();
 
@@ -30,6 +31,11 @@ bootstrapSession();
 wireEvents();
 startPressWatcher();
 startLogWatcher();
+mountUserSwitcher({
+  selectId: 'userSwitcher',
+  labelId: 'currentUserSupervisor',
+  allowedRoles: ['supervisor', 'admin']
+});
 
 async function bootstrapSession() {
   const storedUser = getStoredSessionUser();
