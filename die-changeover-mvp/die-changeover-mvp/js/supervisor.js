@@ -86,7 +86,6 @@ function startPressWatcher() {
     presses = livePresses;
     render();
     autofillForm();
-    updateQuickAssignHint();
   });
 }
 
@@ -154,7 +153,6 @@ function render() {
     `;
 
   wireQueueSlotClicks();
-  updateQuickAssignHint();
 }
 
 function renderPressRow(press) {
@@ -195,7 +193,6 @@ function renderSupervisorSlot(press, slot, slotIndex) {
   const displayStatus = empty ? 'no_setup' : slot.status;
   const isSelected = press.id === pressSelect.value && String(slotIndex) === String(slotSelect.value);
   const emptyClass = empty ? ' empty-slot-card' : '';
-  const quickAssignLabel = empty ? 'Load Setup Here' : 'Edit This Slot';
 
   return `
     <section
@@ -219,17 +216,6 @@ function renderSupervisorSlot(press, slot, slotIndex) {
       <div class="slot-note">${slot.notes || 'No notes added.'}</div>
       <div class="muted">Last updated by ${slot.lastUpdatedBy || press.lastUpdatedBy || '—'}</div>
       <div class="muted">Updated ${slot.updatedAt ? formatTime(slot.updatedAt) : '—'}</div>
-
-      <div class="slot-actions" style="margin-top:10px;">
-        <button
-          type="button"
-          class="button primary full"
-          data-pick-press="${press.id}"
-          data-pick-slot="${slotIndex}"
-        >
-          ${quickAssignLabel}
-        </button>
-      </div>
     </section>
   `;
 }
@@ -237,67 +223,12 @@ function renderSupervisorSlot(press, slot, slotIndex) {
 function wireQueueSlotClicks() {
   supervisorBoard.querySelectorAll('[data-pick-press][data-pick-slot]').forEach((card) => {
     card.addEventListener('click', () => {
-      const pressId = card.dataset.pickPress;
-      const slotIndex = card.dataset.pickSlot;
-
-      pressSelect.value = pressId;
-      slotSelect.value = slotIndex;
-
+      pressSelect.value = card.dataset.pickPress;
+      slotSelect.value = card.dataset.pickSlot;
       autofillForm();
       render();
-      focusQuickAssign();
     });
   });
-}
-
-function focusQuickAssign() {
-  updateQuickAssignHint();
-
-  if (setupForm && (isSupervisor() || isAdmin())) {
-    setupForm.scrollIntoView({
-      behavior: 'smooth',
-      block: 'start'
-    });
-  }
-
-  const partInput = document.getElementById('partInput');
-  if (partInput) {
-    setTimeout(() => partInput.focus(), 150);
-  }
-}
-
-function updateQuickAssignHint() {
-  if (!setupForm) return;
-
-  let hint = document.getElementById('quickAssignHint');
-  if (!hint) {
-    hint = document.createElement('div');
-    hint.id = 'quickAssignHint';
-    hint.className = 'muted';
-    hint.style.marginBottom = '12px';
-    hint.style.padding = '10px 12px';
-    hint.style.border = '1px solid rgba(255,255,255,0.08)';
-    hint.style.borderRadius = '12px';
-    hint.style.background = 'rgba(255,255,255,0.04)';
-    setupForm.insertAdjacentElement('afterbegin', hint);
-  }
-
-  const press = presses.find((p) => p.id === pressSelect.value);
-  const slotIndex = Number(slotSelect.value);
-  const slotNumber = slotIndex + 1;
-
-  if (!press) {
-    hint.textContent = 'Pick a press and slot to load or update a setup.';
-    return;
-  }
-
-  const slots = getSlotsArray(press);
-  const slot = slots[slotIndex];
-  const isEmpty = !slot?.partNumber;
-
-  hint.textContent = isEmpty
-    ? `Target: Press ${press.pressNumber} · Slot ${slotNumber} — empty slot ready for quick assign`
-    : `Target: Press ${press.pressNumber} · Slot ${slotNumber} — updating existing setup`;
 }
 
 function autofillForm() {
@@ -315,8 +246,6 @@ function autofillForm() {
   if (partInput) partInput.value = slot.partNumber || '';
   if (qtyInput) qtyInput.value = slot.qtyRemaining || '';
   if (notesInput) notesInput.value = slot.notes || '';
-
-  updateQuickAssignHint();
 }
 
 function validateSetupForm() {
