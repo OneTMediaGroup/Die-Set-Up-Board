@@ -2,6 +2,7 @@ import { fetchUsersFromFirestore, updateUserInFirestore } from './firestore-user
 import { fetchPressesFromFirestore, setPressLockInFirestore, archiveAndResetPressInFirestore } from './firestore-press-admin.js';
 import { getSession, setSession } from './store.js';
 import { getStoredSessionUser, setStoredSessionUser } from './session-user.js';
+import { mountUserSwitcher } from './user-switcher.js';
 
 const usersContainer = document.getElementById('adminUsersList');
 const refreshBtn = document.getElementById('refreshAdminUsersBtn');
@@ -22,6 +23,12 @@ async function init() {
       await Promise.all([loadUsers(), loadPressTools()]);
     });
   }
+
+  await mountUserSwitcher({
+    selectId: 'userSwitcher',
+    labelId: 'currentAdminUser',
+    allowedRoles: ['admin', 'supervisor', 'dieSetter', 'operator']
+  });
 }
 
 function renderCurrentAdminUser() {
@@ -101,6 +108,7 @@ function renderUsers() {
           <div>
             <label class="muted">Role</label>
             <select data-role="${user.id}">
+              <option value="operator" ${user.role === 'operator' ? 'selected' : ''}>operator</option>
               <option value="dieSetter" ${user.role === 'dieSetter' ? 'selected' : ''}>dieSetter</option>
               <option value="supervisor" ${user.role === 'supervisor' ? 'selected' : ''}>supervisor</option>
               <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>admin</option>
