@@ -393,6 +393,10 @@ input, textarea, select {
   text-align: center;
 }
 
+.area-block {
+  margin-bottom: 28px;
+}  
+
 .slot-actions .button:only-child {
   grid-column: 1 / -1;
 }
