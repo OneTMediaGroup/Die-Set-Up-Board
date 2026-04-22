@@ -23,6 +23,11 @@ export async function fetchUsersFromFirestore() {
   return users.sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
 }
 
+export async function fetchActiveUsersFromFirestore() {
+  const users = await fetchUsersFromFirestore();
+  return users.filter((user) => user.status === 'active');
+}
+
 export async function updateUserInFirestore(userId, updates) {
   const ref = doc(db, 'users', userId);
 
