@@ -140,45 +140,93 @@ function startPressWatcher() {
 
 function renderBoard() {
   const visiblePresses = filteredPresses();
+
   syncTimeBoard.textContent = new Date().toLocaleTimeString([], {
     hour: '2-digit',
     minute: '2-digit'
   });
 
-  pressGrid.innerHTML = visiblePresses.map((press) => {
-    const slots = getSlotsArray(press);
+  // group by areaId
+  const grouped = {};
+
+  visiblePresses.forEach((press) => {
+    const key = press.areaId || 'unassigned';
+
+    if (!grouped[key]) {
+      grouped[key] = [];
+    }
+
+    grouped[key].push(press);
+  });
+
+  const sortedAreaKeys = Object.keys(grouped).sort();
+
+  pressGrid.innerHTML = sortedAreaKeys.map((areaKey) => {
+    const pressesInArea = grouped[areaKey];
+
+    // nicer label
+    const areaLabel =
+      areaKey === 'unassigned'
+        ? 'Unassigned'
+        : pressesInArea[0]?.area || 'Area';
 
     return `
-      <article class="press-row">
-        <div class="press-row-header">
-          <div>
-            <h3>Press ${press.pressNumber}</h3>
-            <div class="muted">${press.area} · Shift ${press.shift}${press.isLocked ? ` · Locked by ${press.lockedBy || 'Admin'}` : ''}</div>
-          </div>
-          <div class="muted">${slots.filter((slot) => slot.partNumber).length} active setups</div>
-        </div>
-        <div class="slot-grid">
-          ${slots.map((slot, slotIndex) => renderSlot(press, slot, slotIndex)).join('')}
-        </div>
-      </article>
+      <section class="area-block">
+        <h2 style="margin-bottom:12px;">${areaLabel}</h2>
+
+        ${pressesInArea.map((press) => {
+          const slots = getSlotsArray(press);
+
+          return `
+            <article class="press-row">
+              <div class="press-row-header">
+                <div>
+                  <h3>Press ${press.pressNumber}</h3>
+                  <div class="muted">${press.area} · Shift ${press.shift}</div>
+                </div>
+                <div class="muted">
+                  ${slots.filter((s) => s.partNumber).length} active setups
+                </div>
+              </div>
+
+              <div class="slot-grid">
+                ${slots
+                  .map((slot, slotIndex) =>
+                    renderSlot(press, slot, slotIndex)
+                  )
+                  .join('')}
+              </div>
+            </article>
+          `;
+        }).join('')}
+      </section>
     `;
   }).join('');
 
+  // rebind buttons
   pressGrid.querySelectorAll('[data-open-setup]').forEach((button) => {
-    button.addEventListener('click', () => openSetup(button.dataset.pressId, Number(button.dataset.slotIndex)));
+    button.addEventListener('click', () =>
+      openSetup(button.dataset.pressId, Number(button.dataset.slotIndex))
+    );
   });
 
   pressGrid.querySelectorAll('[data-quick-complete]').forEach((button) => {
     button.addEventListener('click', async (event) => {
       event.stopPropagation();
-      await handleQuickComplete(button.dataset.pressId, Number(button.dataset.slotIndex));
+      await handleQuickComplete(
+        button.dataset.pressId,
+        Number(button.dataset.slotIndex)
+      );
     });
   });
 
-  pressGrid.querySelectorAll('[data-ready]').forEach((button) => {
+  pressGrid.querySelectorAll('[data-ready-changeover]').forEach((button) => {
     button.addEventListener('click', async (event) => {
       event.stopPropagation();
-      await handleReadyForChangeover(button.dataset.pressId, Number(button.dataset.slotIndex));
+      await handleReadyForChangeover(
+        button.dataset.pressId,
+        Number(button.dataset.slotIndex)
+      );
     });
   });
 }
