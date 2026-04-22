@@ -1,27 +1,61 @@
 import { fetchUsersFromFirestore, updateUserInFirestore } from './firestore-users.js';
-import { fetchPressesFromFirestore, setPressLockInFirestore, archiveAndResetPressInFirestore } from './firestore-press-admin.js';
+import {
+  fetchPressesFromFirestore,
+  setPressLockInFirestore,
+  archiveAndResetPressInFirestore
+} from './firestore-press-admin.js';
 import { getSession, setSession } from './store.js';
 import { getStoredSessionUser, setStoredSessionUser } from './session-user.js';
 import { mountUserSwitcher } from './user-switcher.js';
+import { db } from './firebase-config.js';
+import {
+  collection,
+  addDoc,
+  getDocs,
+  updateDoc,
+  doc
+} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
 const usersContainer = document.getElementById('adminUsersList');
 const refreshBtn = document.getElementById('refreshAdminUsersBtn');
 const userCount = document.getElementById('adminUsersCount');
 const currentAdminUser = document.getElementById('currentAdminUser');
 
+const areasList = document.getElementById('areasList');
+const addAreaBtn = document.getElementById('addAreaBtn');
+
 let users = [];
 let presses = [];
+let areas = [];
 
 init();
 
 async function init() {
   renderCurrentAdminUser();
-  await Promise.all([loadUsers(), loadPressTools()]);
+
+  await Promise.all([
+    loadUsers(),
+    loadPressTools(),
+    loadAreas(),
+    loadAreaPresses()
+  ]);
+
+  renderAreas();
 
   if (refreshBtn) {
     refreshBtn.addEventListener('click', async () => {
-      await Promise.all([loadUsers(), loadPressTools()]);
+      await Promise.all([
+        loadUsers(),
+        loadPressTools(),
+        loadAreas(),
+        loadAreaPresses()
+      ]);
+      renderAreas();
     });
+  }
+
+  if (addAreaBtn) {
+    addAreaBtn.addEventListener('click', handleAddArea);
   }
 
   await mountUserSwitcher({
@@ -88,71 +122,6 @@ function renderUsers() {
     `;
     return;
   }
-
-import {
-  collection,
-  addDoc,
-  getDocs,
-  updateDoc,
-  doc
-} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { db } from './firebase-config.js';
-
-const areasList = document.getElementById('areasList');
-const addAreaBtn = document.getElementById('addAreaBtn');
-
-let areas = [];
-let presses = [];
-
-initAreas();
-
-async function initAreas() {
-  await loadAreas();
-  await loadPresses();
-  renderAreas();
-}
-
-async function loadAreas() {
-  const snapshot = await getDocs(collection(db, 'areas'));
-  areas = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-}
-
-async function loadPresses() {
-  const snapshot = await getDocs(collection(db, 'presses'));
-  presses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-}
-
-function renderAreas() {
-  areasList.innerHTML = areas.map(area => {
-    const areaPresses = presses.filter(p => p.areaId === area.id);
-
-    return `
-      <div class="card">
-        <strong>${area.name}</strong>
-
-        <div style="margin-top:10px; display:flex; flex-direction:column; gap:6px;">
-          ${areaPresses.map(p => `
-            <div class="muted">Press ${p.pressNumber}</div>
-          `).join('')}
-        </div>
-      </div>
-    `;
-  }).join('');
-}
-
-addAreaBtn.addEventListener('click', async () => {
-  const name = prompt('Area name (e.g. Forming, Rolling)');
-  if (!name) return;
-
-  await addDoc(collection(db, 'areas'), {
-    name,
-    order: areas.length + 1
-  });
-
-  await loadAreas();
-  renderAreas();
-});
-  
 
   usersContainer.innerHTML = users.map((user) => {
     const status = user.status || (user.isActive === false ? 'inactive' : 'active');
@@ -347,9 +316,7 @@ async function handleToggleLock() {
   if (!press) return;
 
   const targetState = !press.isLocked;
-  const confirmed = window.confirm(
-    `${targetState ? 'Lock' : 'Unlock'} Press ${press.pressNumber}?`
-  );
+  const confirmed = window.confirm(`${targetState ? 'Lock' : 'Unlock'} Press ${press.pressNumber}?`);
   if (!confirmed) return;
 
   try {
@@ -360,6 +327,8 @@ async function handleToggleLock() {
     });
 
     await loadPressTools();
+    await loadAreaPresses();
+    renderAreas();
   } catch (error) {
     console.error('❌ Failed to toggle press lock:', error);
     alert('Press lock update failed.');
@@ -386,6 +355,8 @@ async function handleResetPress() {
     });
 
     await loadPressTools();
+    await loadAreaPresses();
+    renderAreas();
     alert(`Press ${press.pressNumber} archived and reset.`);
   } catch (error) {
     console.error('❌ Failed to reset press:', error);
@@ -403,4 +374,154 @@ function renderPressToolsError() {
     </div>
     <div class="muted">Could not load press admin tools.</div>
   `;
+}
+
+async function loadAreas() {
+  if (!areasList) return;
+
+  try {
+    const snapshot = await getDocs(collection(db, 'areas'));
+    areas = snapshot.docs
+      .map((item) => ({ id: item.id, ...item.data() }))
+      .sort((a, b) => Number(a.order || 0) - Number(b.order || 0));
+  } catch (error) {
+    console.error('❌ Failed to load areas:', error);
+    areas = [];
+  }
+}
+
+async function loadAreaPresses() {
+  try {
+    const snapshot = await getDocs(collection(db, 'presses'));
+    presses = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
+  } catch (error) {
+    console.error('❌ Failed to load presses for areas:', error);
+    presses = [];
+  }
+}
+
+function renderAreas() {
+  if (!areasList) return;
+
+  if (!areas.length) {
+    areasList.innerHTML = `
+      <div class="card">
+        <strong>No areas yet</strong>
+        <div class="muted">Add your first area like Forming or Rolling.</div>
+      </div>
+    `;
+    return;
+  }
+
+  areasList.innerHTML = areas.map((area) => {
+    const unassignedPresses = presses.filter((press) => !press.areaId);
+    const areaPresses = presses.filter((press) => press.areaId === area.id);
+
+    return `
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;">
+          <div>
+            <strong>${area.name}</strong>
+            <div class="muted">Order: ${area.order || 0}</div>
+          </div>
+        </div>
+
+        <div style="margin-top:14px;">
+          <label class="muted">Assign press to ${area.name}</label>
+          <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:6px;">
+            <select data-area-assign="${area.id}">
+              <option value="">Select press</option>
+              ${unassignedPresses.map((press) => `
+                <option value="${press.id}">Press ${press.pressNumber} · ${press.area} · ${press.shift}</option>
+              `).join('')}
+            </select>
+            <button class="button" data-area-assign-btn="${area.id}">Assign Press</button>
+          </div>
+        </div>
+
+        <div style="margin-top:14px; display:grid; gap:8px;">
+          ${areaPresses.length
+            ? areaPresses.map((press) => `
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; padding:10px 12px; border:1px solid rgba(255,255,255,0.08); border-radius:12px;">
+                  <div>
+                    <strong>Press ${press.pressNumber}</strong>
+                    <div class="muted">${press.area} · ${press.shift}</div>
+                  </div>
+                  <button class="button" data-remove-press="${press.id}">Remove from Area</button>
+                </div>
+              `).join('')
+            : `<div class="muted">No presses assigned yet.</div>`
+          }
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  wireAreaButtons();
+}
+
+function wireAreaButtons() {
+  document.querySelectorAll('[data-area-assign-btn]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const areaId = btn.dataset.areaAssignBtn;
+      const select = document.querySelector(`[data-area-assign="${areaId}"]`);
+      if (!select || !select.value) {
+        alert('Pick a press first.');
+        return;
+      }
+
+      try {
+        await updateDoc(doc(db, 'presses', select.value), {
+          areaId,
+          updatedAt: new Date().toISOString()
+        });
+
+        await loadAreaPresses();
+        await loadPressTools();
+        renderAreas();
+      } catch (error) {
+        console.error('❌ Failed to assign press to area:', error);
+        alert('Assign press failed.');
+      }
+    });
+  });
+
+  document.querySelectorAll('[data-remove-press]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const pressId = btn.dataset.removePress;
+
+      try {
+        await updateDoc(doc(db, 'presses', pressId), {
+          areaId: null,
+          updatedAt: new Date().toISOString()
+        });
+
+        await loadAreaPresses();
+        await loadPressTools();
+        renderAreas();
+      } catch (error) {
+        console.error('❌ Failed to remove press from area:', error);
+        alert('Remove press failed.');
+      }
+    });
+  });
+}
+
+async function handleAddArea() {
+  const name = window.prompt('Area name (example: Forming, Rolling)');
+  if (!name || !name.trim()) return;
+
+  try {
+    await addDoc(collection(db, 'areas'), {
+      name: name.trim(),
+      order: areas.length + 1,
+      createdAt: new Date().toISOString()
+    });
+
+    await loadAreas();
+    renderAreas();
+  } catch (error) {
+    console.error('❌ Failed to add area:', error);
+    alert('Add area failed.');
+  }
 }
