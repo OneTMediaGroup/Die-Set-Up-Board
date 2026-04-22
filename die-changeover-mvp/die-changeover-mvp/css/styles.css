@@ -379,9 +379,9 @@ input, textarea, select {
   border: 1px dashed rgba(255, 255, 255, 0.2);
 }
 
-  .slot-actions {
-  display: flex;
-  flex-direction: column;
+ .slot-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 8px;
   margin-top: 10px;
 }
@@ -391,5 +391,9 @@ input, textarea, select {
   min-height: 44px;
   white-space: normal;
   text-align: center;
-}  
+}
+
+.slot-actions .button:only-child {
+  grid-column: 1 / -1;
+}
 }
