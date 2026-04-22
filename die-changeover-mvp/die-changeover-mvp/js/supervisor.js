@@ -118,6 +118,7 @@ function render() {
   const currentSelectedSlotIndex = slotSelect.value || '0';
 
   pressSelect.innerHTML = presses
+    .sort((a, b) => Number(a.pressNumber || 0) - Number(b.pressNumber || 0))
     .map((press) => `<option value="${press.id}">Press ${press.pressNumber}</option>`)
     .join('');
 
@@ -127,9 +128,9 @@ function render() {
 
   slotSelect.value = currentSelectedSlotIndex;
 
-  supervisorBoard.innerHTML = presses
-    .map((press) => renderPressRow(press))
-    .join('');
+  const visiblePresses = getVisiblePressesGroupedForSupervisor();
+
+  supervisorBoard.innerHTML = visiblePresses;
 
   const filteredLogs = getFilteredLogs();
 
@@ -153,6 +154,48 @@ function render() {
     `;
 
   wireQueueSlotClicks();
+}
+
+function getVisiblePressesGroupedForSupervisor() {
+  const visiblePresses = filteredPresses();
+
+  const grouped = {};
+
+  visiblePresses.forEach((press) => {
+    const key = press.areaId || `area-name-${String(press.area || 'Unassigned').toLowerCase()}` || 'unassigned';
+
+    if (!grouped[key]) {
+      grouped[key] = [];
+    }
+
+    grouped[key].push(press);
+  });
+
+  const sortedAreaKeys = Object.keys(grouped).sort((a, b) => {
+    const aLabel = grouped[a][0]?.area || 'Unassigned';
+    const bLabel = grouped[b][0]?.area || 'Unassigned';
+    return aLabel.localeCompare(bLabel);
+  });
+
+  return sortedAreaKeys.map((areaKey) => {
+    const pressesInArea = grouped[areaKey];
+
+    const areaLabel =
+      pressesInArea[0]?.area && String(pressesInArea[0].area).trim()
+        ? pressesInArea[0].area
+        : 'Unassigned';
+
+    const sortedPresses = [...pressesInArea].sort(
+      (a, b) => Number(a.pressNumber || 0) - Number(b.pressNumber || 0)
+    );
+
+    return `
+      <section class="area-block">
+        <h2 style="margin-bottom:12px;">${areaLabel}</h2>
+        ${sortedPresses.map((press) => renderPressRow(press)).join('')}
+      </section>
+    `;
+  }).join('');
 }
 
 function renderPressRow(press) {
@@ -331,6 +374,14 @@ function wireEvents() {
   }
 
   refreshSupervisorBtn.addEventListener('click', render);
+}
+
+function filteredPresses() {
+  return presses.filter((press) => {
+    const areaMatch = areaFilterBoard.value === 'all' || press.area === areaFilterBoard.value;
+    const shiftMatch = shiftFilterBoard.value === 'all' || press.shift === shiftFilterBoard.value;
+    return areaMatch && shiftMatch;
+  });
 }
 
 window.addEventListener('beforeunload', () => {
