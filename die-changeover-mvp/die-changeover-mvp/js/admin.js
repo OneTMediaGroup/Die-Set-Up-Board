@@ -89,6 +89,71 @@ function renderUsers() {
     return;
   }
 
+import {
+  collection,
+  addDoc,
+  getDocs,
+  updateDoc,
+  doc
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { db } from './firebase-config.js';
+
+const areasList = document.getElementById('areasList');
+const addAreaBtn = document.getElementById('addAreaBtn');
+
+let areas = [];
+let presses = [];
+
+initAreas();
+
+async function initAreas() {
+  await loadAreas();
+  await loadPresses();
+  renderAreas();
+}
+
+async function loadAreas() {
+  const snapshot = await getDocs(collection(db, 'areas'));
+  areas = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+}
+
+async function loadPresses() {
+  const snapshot = await getDocs(collection(db, 'presses'));
+  presses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+}
+
+function renderAreas() {
+  areasList.innerHTML = areas.map(area => {
+    const areaPresses = presses.filter(p => p.areaId === area.id);
+
+    return `
+      <div class="card">
+        <strong>${area.name}</strong>
+
+        <div style="margin-top:10px; display:flex; flex-direction:column; gap:6px;">
+          ${areaPresses.map(p => `
+            <div class="muted">Press ${p.pressNumber}</div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+addAreaBtn.addEventListener('click', async () => {
+  const name = prompt('Area name (e.g. Forming, Rolling)');
+  if (!name) return;
+
+  await addDoc(collection(db, 'areas'), {
+    name,
+    order: areas.length + 1
+  });
+
+  await loadAreas();
+  renderAreas();
+});
+  
+
   usersContainer.innerHTML = users.map((user) => {
     const status = user.status || (user.isActive === false ? 'inactive' : 'active');
 
