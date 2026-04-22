@@ -146,11 +146,10 @@ function renderBoard() {
     minute: '2-digit'
   });
 
-  // group by areaId
   const grouped = {};
 
   visiblePresses.forEach((press) => {
-    const key = press.areaId || 'unassigned';
+    const key = press.areaId || `area-name-${String(press.area || 'Unassigned').toLowerCase()}` || 'unassigned';
 
     if (!grouped[key]) {
       grouped[key] = [];
@@ -159,22 +158,29 @@ function renderBoard() {
     grouped[key].push(press);
   });
 
-  const sortedAreaKeys = Object.keys(grouped).sort();
+  const sortedAreaKeys = Object.keys(grouped).sort((a, b) => {
+    const aLabel = grouped[a][0]?.area || 'Unassigned';
+    const bLabel = grouped[b][0]?.area || 'Unassigned';
+    return aLabel.localeCompare(bLabel);
+  });
 
   pressGrid.innerHTML = sortedAreaKeys.map((areaKey) => {
     const pressesInArea = grouped[areaKey];
 
-    // nicer label
     const areaLabel =
-      areaKey === 'unassigned'
-        ? 'Unassigned'
-        : pressesInArea[0]?.area || 'Area';
+      pressesInArea[0]?.area && String(pressesInArea[0].area).trim()
+        ? pressesInArea[0].area
+        : 'Unassigned';
+
+    const sortedPresses = [...pressesInArea].sort(
+      (a, b) => Number(a.pressNumber || 0) - Number(b.pressNumber || 0)
+    );
 
     return `
       <section class="area-block">
         <h2 style="margin-bottom:12px;">${areaLabel}</h2>
 
-        ${pressesInArea.map((press) => {
+        ${sortedPresses.map((press) => {
           const slots = getSlotsArray(press);
 
           return `
@@ -182,19 +188,12 @@ function renderBoard() {
               <div class="press-row-header">
                 <div>
                   <h3>Press ${press.pressNumber}</h3>
-                  <div class="muted">${press.area} · Shift ${press.shift}</div>
+                  <div class="muted">${press.area} · Shift ${press.shift}${press.isLocked ? ` · Locked by ${press.lockedBy || 'Admin'}` : ''}</div>
                 </div>
-                <div class="muted">
-                  ${slots.filter((s) => s.partNumber).length} active setups
-                </div>
+                <div class="muted">${slots.filter((slot) => slot.partNumber).length} active setups</div>
               </div>
-
               <div class="slot-grid">
-                ${slots
-                  .map((slot, slotIndex) =>
-                    renderSlot(press, slot, slotIndex)
-                  )
-                  .join('')}
+                ${slots.map((slot, slotIndex) => renderSlot(press, slot, slotIndex)).join('')}
               </div>
             </article>
           `;
@@ -203,30 +202,21 @@ function renderBoard() {
     `;
   }).join('');
 
-  // rebind buttons
   pressGrid.querySelectorAll('[data-open-setup]').forEach((button) => {
-    button.addEventListener('click', () =>
-      openSetup(button.dataset.pressId, Number(button.dataset.slotIndex))
-    );
+    button.addEventListener('click', () => openSetup(button.dataset.pressId, Number(button.dataset.slotIndex)));
   });
 
   pressGrid.querySelectorAll('[data-quick-complete]').forEach((button) => {
     button.addEventListener('click', async (event) => {
       event.stopPropagation();
-      await handleQuickComplete(
-        button.dataset.pressId,
-        Number(button.dataset.slotIndex)
-      );
+      await handleQuickComplete(button.dataset.pressId, Number(button.dataset.slotIndex));
     });
   });
 
-  pressGrid.querySelectorAll('[data-ready-changeover]').forEach((button) => {
+  pressGrid.querySelectorAll('[data-ready]').forEach((button) => {
     button.addEventListener('click', async (event) => {
       event.stopPropagation();
-      await handleReadyForChangeover(
-        button.dataset.pressId,
-        Number(button.dataset.slotIndex)
-      );
+      await handleReadyForChangeover(button.dataset.pressId, Number(button.dataset.slotIndex));
     });
   });
 }
