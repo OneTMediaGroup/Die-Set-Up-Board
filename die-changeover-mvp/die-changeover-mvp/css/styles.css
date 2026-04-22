@@ -378,5 +378,18 @@ input, textarea, select {
 .slot-card.empty-slot-card .status-pill.no_setup {
   border: 1px dashed rgba(255, 255, 255, 0.2);
 }
-  
+
+  .slot-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.slot-actions .button {
+  width: 100%;
+  min-height: 44px;
+  white-space: normal;
+  text-align: center;
+}  
 }
