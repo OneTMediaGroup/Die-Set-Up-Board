@@ -157,6 +157,17 @@ function render() {
 function renderPressRow(press) {
   const slots = getSlotsArray(press);
 
+  // 🔥 PRIORITY SORT
+  const sortedSlots = [...slots].sort((a, b) => {
+    const aReady = a.status === 'ready_for_changeover';
+    const bReady = b.status === 'ready_for_changeover';
+
+    if (aReady && !bReady) return -1;
+    if (!aReady && bReady) return 1;
+
+    return 0;
+  });
+
   return `
     <article class="press-row">
       <div class="press-row-header">
@@ -168,7 +179,10 @@ function renderPressRow(press) {
       </div>
 
       <div class="slot-grid">
-        ${slots.map((slot, slotIndex) => renderSupervisorSlot(press, slot, slotIndex)).join('')}
+        ${sortedSlots.map((slot, slotIndex) => {
+          const originalIndex = slots.indexOf(slot);
+          return renderSupervisorSlot(press, slot, originalIndex);
+        }).join('')}
       </div>
     </article>
   `;
