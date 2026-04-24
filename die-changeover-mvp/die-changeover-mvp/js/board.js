@@ -146,21 +146,21 @@ function renderBoard() {
     minute: '2-digit'
   });
 
+  syncAreaFilterOptions();
+
   const grouped = {};
 
   visiblePresses.forEach((press) => {
-    const key = press.areaId || `area-name-${String(press.area || 'Unassigned').toLowerCase()}` || 'unassigned';
+    const areaLabel = press.areaId && press.areaName ? press.areaName : 'Unassigned';
+    const key = press.areaId && press.areaName ? press.areaId : 'unassigned';
 
-    if (!grouped[key]) {
-      grouped[key] = [];
-    }
-
+    if (!grouped[key]) grouped[key] = [];
     grouped[key].push(press);
   });
 
   const sortedAreaKeys = Object.keys(grouped).sort((a, b) => {
-    const aLabel = grouped[a][0]?.area || 'Unassigned';
-    const bLabel = grouped[b][0]?.area || 'Unassigned';
+    const aLabel = grouped[a][0]?.areaName || 'Unassigned';
+    const bLabel = grouped[b][0]?.areaName || 'Unassigned';
     return aLabel.localeCompare(bLabel);
   });
 
@@ -168,9 +168,11 @@ function renderBoard() {
     const pressesInArea = grouped[areaKey];
 
     const areaLabel =
-      pressesInArea[0]?.area && String(pressesInArea[0].area).trim()
-        ? pressesInArea[0].area
-        : 'Unassigned';
+      areaKey === 'unassigned'
+        ? 'Unassigned'
+        : pressesInArea[0]?.areaName || 'Unassigned';
+
+    const areaColor = pressesInArea[0]?.areaColor || '#444';
 
     const sortedPresses = [...pressesInArea].sort(
       (a, b) => Number(a.pressNumber || 0) - Number(b.pressNumber || 0)
@@ -178,7 +180,9 @@ function renderBoard() {
 
     return `
       <section class="area-block">
-        <h2 style="margin-bottom:12px;">${areaLabel}</h2>
+        <h2 style="margin-bottom:12px; border-left:8px solid ${areaColor}; padding-left:12px;">
+          ${areaLabel}
+        </h2>
 
         ${sortedPresses.map((press) => {
           const slots = getSlotsArray(press);
@@ -187,8 +191,8 @@ function renderBoard() {
             <article class="press-row">
               <div class="press-row-header">
                 <div>
-                  <h3>Press ${press.pressNumber}</h3>
-                  <div class="muted">${press.area} · Shift ${press.shift}${press.isLocked ? ` · Locked by ${press.lockedBy || 'Admin'}` : ''}</div>
+                  <h3>${press.equipmentName || `Press ${press.pressNumber}`}</h3>
+                  <div class="muted">${press.area || 'No work cell'} · Shift ${press.shift}${press.isLocked ? ` · Locked by ${press.lockedBy || 'Admin'}` : ''}</div>
                 </div>
                 <div class="muted">${slots.filter((slot) => slot.partNumber).length} active setups</div>
               </div>
@@ -222,6 +226,7 @@ function renderBoard() {
 }
 
 function renderSlot(press, slot, slotIndex) {
+  const areaColor = press.areaColor || '#444';
   const empty = !slot.partNumber;
   const displayStatus = empty ? 'no_setup' : slot.status;
   const canAct = (isDieSetter() || isAdmin()) && !press.isLocked;
@@ -231,18 +236,21 @@ function renderSlot(press, slot, slotIndex) {
   const lockedBadge = press.isLocked ? `<div class="muted" style="margin-bottom:8px;">🔒 Press locked</div>` : '';
 
   return `
-    <section class="slot-card${emptyClass}">
+    <section class="slot-card${emptyClass}" style="border-left:6px solid ${areaColor};">
       <div class="slot-header">
         <h4>Slot ${slotIndex + 1}</h4>
         <span class="status-pill ${displayStatus}">${empty ? 'No Setup' : statusLabel(slot.status)}</span>
       </div>
+
       <div class="slot-meta">
         <div class="meta-box"><span>Part</span><strong>${slot.partNumber || '—'}</strong></div>
         <div class="meta-box"><span>Qty</span><strong>${slot.partNumber ? slot.qtyRemaining : '—'}</strong></div>
       </div>
+
       <div class="slot-note">${slot.notes || 'No notes added.'}</div>
       <div class="muted">Last updated by ${slot.lastUpdatedBy || press.lastUpdatedBy || '—'}</div>
       ${lockedBadge}
+
       <div class="slot-actions">
         ${
           canPublicReady
@@ -262,6 +270,7 @@ function renderSlot(press, slot, slotIndex) {
             : ''
         }
       </div>
+
       <div class="muted">Updated ${formatTime(slot.updatedAt)}</div>
     </section>
   `;
@@ -280,7 +289,7 @@ async function handleReadyForChangeover(pressId, slotIndex) {
   if (slot.status === 'ready_for_changeover') return;
 
   const confirmed = window.confirm(
-    `Mark Press ${press.pressNumber} Slot ${slotIndex + 1} as READY FOR CHANGEOVER?`
+    `Mark ${press.equipmentName || `Press ${press.pressNumber}`} Slot ${slotIndex + 1} as READY FOR CHANGEOVER?`
   );
 
   if (!confirmed) return;
@@ -326,7 +335,7 @@ async function handleQuickComplete(pressId, slotIndex) {
   if (slot.status === 'change_complete') return;
 
   const confirmed = window.confirm(
-    `Mark Press ${press.pressNumber} Slot ${slotIndex + 1} as Complete?\n\nPart: ${slot.partNumber}`
+    `Mark ${press.equipmentName || `Press ${press.pressNumber}`} Slot ${slotIndex + 1} as Complete?\n\nPart: ${slot.partNumber}`
   );
 
   if (!confirmed) return;
@@ -395,7 +404,7 @@ function refreshOpenDialog() {
 function fillDialog(press, slot, slotIndex) {
   const empty = !slot.partNumber;
 
-  document.getElementById('dialogTitle').textContent = `Press ${press.pressNumber} · Slot ${slotIndex + 1}`;
+  document.getElementById('dialogTitle').textContent = `${press.equipmentName || `Press ${press.pressNumber}`} · Slot ${slotIndex + 1}`;
   document.getElementById('dialogSubtitle').textContent = `${press.area} · Shift ${press.shift}${press.isLocked ? ' · LOCKED' : ''}`;
   document.getElementById('dialogPart').textContent = slot.partNumber || '—';
   document.getElementById('dialogQty').textContent = slot.partNumber ? String(slot.qtyRemaining) : '—';
@@ -584,11 +593,43 @@ async function handleDialogAction(action) {
     setDialogBusyState(false);
   }
 }
+function syncAreaFilterOptions() {
+  if (!areaFilterBoard) return;
+
+  const currentValue = areaFilterBoard.value || 'all';
+
+  const areaNames = [...new Set(
+    presses
+      .filter((press) => press.areaId && press.areaName)
+      .map((press) => press.areaName)
+  )].sort();
+
+  areaFilterBoard.innerHTML = `
+    <option value="all">All</option>
+    <option value="unassigned">Unassigned</option>
+    ${areaNames.map((name) => `<option value="${name}">${name}</option>`).join('')}
+  `;
+
+  if (currentValue === 'all' || currentValue === 'unassigned' || areaNames.includes(currentValue)) {
+    areaFilterBoard.value = currentValue;
+  } else {
+    areaFilterBoard.value = 'all';
+  }
+}
+
 
 function filteredPresses() {
   return presses.filter((press) => {
-    const areaMatch = areaFilterBoard.value === 'all' || press.area === areaFilterBoard.value;
-    const shiftMatch = shiftFilterBoard.value === 'all' || press.shift === shiftFilterBoard.value;
+    const pressArea = press.areaId && press.areaName ? press.areaName : 'unassigned';
+
+    const areaMatch =
+      areaFilterBoard.value === 'all' ||
+      areaFilterBoard.value === pressArea;
+
+    const shiftMatch =
+      shiftFilterBoard.value === 'all' ||
+      press.shift === shiftFilterBoard.value;
+
     return areaMatch && shiftMatch;
   });
 }

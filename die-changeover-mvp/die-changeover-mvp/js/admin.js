@@ -13,6 +13,7 @@ import {
   addDoc,
   getDocs,
   updateDoc,
+  deleteDoc,
   doc
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
@@ -52,10 +53,10 @@ async function init() {
       ]);
       renderAreas();
     });
-  }
+    }
 
   if (addAreaBtn) {
-    addAreaBtn.addEventListener('click', handleAddArea);
+    addAreaBtn.onclick = handleAddArea;
   }
 
   await mountUserSwitcher({
@@ -67,76 +68,26 @@ async function init() {
 
 function renderCurrentAdminUser() {
   const session = getSession() || getStoredSessionUser();
-
   if (!currentAdminUser) return;
-
-  if (!session) {
-    currentAdminUser.textContent = 'No active user';
-    return;
-  }
-
-  const statusText = session.status && session.status !== 'active' ? ` · ${session.status}` : '';
-  currentAdminUser.textContent = `${session.name} · ${session.role}${statusText}`;
+  currentAdminUser.textContent = session ? `${session.name} · ${session.role}` : 'No active user';
 }
 
 async function loadUsers() {
-  try {
-    if (usersContainer) {
-      usersContainer.innerHTML = `<div class="muted">Loading users...</div>`;
-    }
-
-    users = await fetchUsersFromFirestore();
-
-    if (userCount) {
-      userCount.textContent = String(users.length);
-    }
-
-    renderUsers();
-  } catch (err) {
-    console.error('❌ Failed to load users:', err);
-
-    if (usersContainer) {
-      usersContainer.innerHTML = `
-        <div class="card">
-          <strong>Load failed</strong>
-          <div class="muted">Could not load users from Firestore.</div>
-        </div>
-      `;
-    }
-
-    if (userCount) {
-      userCount.textContent = '0';
-    }
-  }
+  users = await fetchUsersFromFirestore();
+  if (userCount) userCount.textContent = String(users.length);
+  renderUsers();
 }
 
 function renderUsers() {
   if (!usersContainer) return;
-
-  if (!users.length) {
-    usersContainer.innerHTML = `
-      <div class="card">
-        <strong>No users found</strong>
-        <div class="muted">Seed users or check Firestore project/config.</div>
-      </div>
-    `;
-    return;
-  }
 
   usersContainer.innerHTML = users.map((user) => {
     const status = user.status || (user.isActive === false ? 'inactive' : 'active');
 
     return `
       <div class="card">
-        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;">
-          <div>
-            <strong>${user.name}</strong>
-            <div class="muted">User ID: ${user.id}</div>
-          </div>
-          <span class="status-pill ${status === 'active' ? 'running' : 'blocked'}">
-            ${status === 'active' ? 'Active' : 'Inactive'}
-          </span>
-        </div>
+        <strong>${user.name}</strong>
+        <div class="muted">User ID: ${user.id}</div>
 
         <div class="grid-2" style="margin-top:16px;">
           <div>
@@ -158,10 +109,7 @@ function renderUsers() {
           </div>
         </div>
 
-        <div style="margin-top:14px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
-          <button data-save="${user.id}" class="button primary">Save User</button>
-          <span class="muted">Current role: ${user.role}</span>
-        </div>
+        <button data-save="${user.id}" class="button primary" style="margin-top:14px;">Save User</button>
       </div>
     `;
   }).join('');
@@ -173,38 +121,18 @@ function wireSaveButtons() {
   document.querySelectorAll('[data-save]').forEach((btn) => {
     btn.addEventListener('click', async () => {
       const userId = btn.dataset.save;
-      const roleSelect = document.querySelector(`[data-role="${userId}"]`);
-      const statusSelect = document.querySelector(`[data-status="${userId}"]`);
+      const role = document.querySelector(`[data-role="${userId}"]`)?.value;
+      const status = document.querySelector(`[data-status="${userId}"]`)?.value;
 
-      if (!roleSelect || !statusSelect) return;
+      if (!role || !status) return;
 
-      const role = roleSelect.value;
-      const status = statusSelect.value;
+      btn.disabled = true;
+      btn.textContent = 'Saving...';
 
-      try {
-        btn.disabled = true;
-        btn.textContent = 'Saving...';
+      await updateUserInFirestore(userId, { role, status });
+      handleLiveSessionUpdate(userId, role, status);
 
-        await updateUserInFirestore(userId, { role, status });
-        handleLiveSessionUpdate(userId, role, status);
-
-        btn.textContent = 'Saved ✓';
-
-        await loadUsers();
-
-        setTimeout(() => {
-          const sameBtn = document.querySelector(`[data-save="${userId}"]`);
-          if (sameBtn) {
-            sameBtn.textContent = 'Save User';
-            sameBtn.disabled = false;
-          }
-        }, 1000);
-      } catch (err) {
-        console.error('❌ Failed to save user:', err);
-        btn.disabled = false;
-        btn.textContent = 'Save User';
-        alert('Save failed');
-      }
+      await loadUsers();
     });
   });
 }
@@ -223,20 +151,11 @@ function handleLiveSessionUpdate(userId, role, status) {
   setSession(updatedUser);
   setStoredSessionUser(updatedUser);
   renderCurrentAdminUser();
-
-  if (status !== 'active') {
-    alert(`${updatedUser.name || 'This user'} has been set to inactive.`);
-  }
 }
 
 async function loadPressTools() {
-  try {
-    presses = await fetchPressesFromFirestore();
-    renderPressTools();
-  } catch (error) {
-    console.error('❌ Failed to load presses for admin:', error);
-    renderPressToolsError();
-  }
+  presses = await fetchPressesFromFirestore();
+  renderPressTools();
 }
 
 function renderPressTools() {
@@ -250,11 +169,10 @@ function renderPressTools() {
     </div>
     <div class="muted" style="margin-bottom:14px;">Admin override tools for lock and reset.</div>
 
-    <label class="muted">Select Press</label>
-    <select id="adminPressSelect" style="margin-top:6px;">
+    <select id="adminPressSelect">
       ${presses.map((press) => `
         <option value="${press.id}">
-          Press ${press.pressNumber} · ${press.area} · ${press.shift}${press.isLocked ? ' · LOCKED' : ''}
+          ${press.equipmentName || `${press.equipmentName || `Press ${press.pressNumber}`}`} · ${press.area} · ${press.shift}${press.isLocked ? ' · LOCKED' : ''}
         </option>
       `).join('')}
     </select>
@@ -272,25 +190,13 @@ function renderPressTools() {
       <h2>System Controls</h2>
     </div>
     <div class="muted">Archive + reset clears all slots after saving the old state into pressArchives.</div>
-    <div class="muted" style="margin-top:10px;">Locked presses stay visible on the floor but cannot be changed by operators.</div>
   `;
 
-  const select = document.getElementById('adminPressSelect');
-  const lockBtn = document.getElementById('adminToggleLockBtn');
-  const resetBtn = document.getElementById('adminResetPressBtn');
+  document.getElementById('adminPressSelect')?.addEventListener('change', renderPressSummary);
+  document.getElementById('adminToggleLockBtn')?.addEventListener('click', handleToggleLock);
+  document.getElementById('adminResetPressBtn')?.addEventListener('click', handleResetPress);
 
-  if (select) {
-    select.addEventListener('change', renderPressSummary);
-    renderPressSummary();
-  }
-
-  if (lockBtn) {
-    lockBtn.addEventListener('click', handleToggleLock);
-  }
-
-  if (resetBtn) {
-    resetBtn.addEventListener('click', handleResetPress);
-  }
+  renderPressSummary();
 }
 
 function renderPressSummary() {
@@ -303,101 +209,58 @@ function renderPressSummary() {
   if (!press) return;
 
   const activeCount = (press.slots || []).filter((slot) => slot.partNumber).length;
-  summary.textContent = `Press ${press.pressNumber} · ${activeCount} active setups · ${press.isLocked ? `Locked by ${press.lockedBy || 'Admin'}` : 'Unlocked'}`;
+  summary.textContent = `${press.equipmentName || `${press.equipmentName || `Press ${press.pressNumber}`}`} · ${activeCount} active setups · ${press.isLocked ? `Locked by ${press.lockedBy || 'Admin'}` : 'Unlocked'}`;
   lockBtn.textContent = press.isLocked ? 'Unlock Press' : 'Lock Press';
 }
 
 async function handleToggleLock() {
   const select = document.getElementById('adminPressSelect');
-  if (!select) return;
-
   const session = getSession() || getStoredSessionUser() || { name: 'Admin' };
-  const press = presses.find((item) => item.id === select.value);
+  const press = presses.find((item) => item.id === select?.value);
   if (!press) return;
 
   const targetState = !press.isLocked;
-  const confirmed = window.confirm(`${targetState ? 'Lock' : 'Unlock'} Press ${press.pressNumber}?`);
-  if (!confirmed) return;
+  if (!confirm(`${targetState ? 'Lock' : 'Unlock'} ${press.equipmentName || `Press ${press.pressNumber}`}?`)) return;
 
-  try {
-    await setPressLockInFirestore({
-      pressId: press.id,
-      isLocked: targetState,
-      userName: session.name
-    });
+  await setPressLockInFirestore({
+    pressId: press.id,
+    isLocked: targetState,
+    userName: session.name
+  });
 
-    await loadPressTools();
-    await loadAreaPresses();
-    renderAreas();
-  } catch (error) {
-    console.error('❌ Failed to toggle press lock:', error);
-    alert('Press lock update failed.');
-  }
+  await loadPressTools();
+  await loadAreaPresses();
+  renderAreas();
 }
 
 async function handleResetPress() {
   const select = document.getElementById('adminPressSelect');
-  if (!select) return;
-
   const session = getSession() || getStoredSessionUser() || { name: 'Admin' };
-  const press = presses.find((item) => item.id === select.value);
+  const press = presses.find((item) => item.id === select?.value);
   if (!press) return;
 
-  const confirmed = window.confirm(
-    `Archive and reset Press ${press.pressNumber}?\n\nThis will save current slots into pressArchives, then clear the press.`
-  );
-  if (!confirmed) return;
+  if (!confirm(`Archive and reset ${press.equipmentName || `Press ${press.pressNumber}`}?`)) return;
 
-  try {
-    await archiveAndResetPressInFirestore({
-      pressId: press.id,
-      userName: session.name
-    });
+  await archiveAndResetPressInFirestore({
+    pressId: press.id,
+    userName: session.name
+  });
 
-    await loadPressTools();
-    await loadAreaPresses();
-    renderAreas();
-    alert(`Press ${press.pressNumber} archived and reset.`);
-  } catch (error) {
-    console.error('❌ Failed to reset press:', error);
-    alert('Archive + reset failed.');
-  }
-}
-
-function renderPressToolsError() {
-  const pressCard = document.querySelector('.grid-2 .card:first-child');
-  if (!pressCard) return;
-
-  pressCard.innerHTML = `
-    <div class="section-header">
-      <h2>Presses</h2>
-    </div>
-    <div class="muted">Could not load press admin tools.</div>
-  `;
+  await loadPressTools();
+  await loadAreaPresses();
+  renderAreas();
 }
 
 async function loadAreas() {
-  if (!areasList) return;
-
-  try {
-    const snapshot = await getDocs(collection(db, 'areas'));
-    areas = snapshot.docs
-      .map((item) => ({ id: item.id, ...item.data() }))
-      .sort((a, b) => Number(a.order || 0) - Number(b.order || 0));
-  } catch (error) {
-    console.error('❌ Failed to load areas:', error);
-    areas = [];
-  }
+  const snapshot = await getDocs(collection(db, 'areas'));
+  areas = snapshot.docs
+    .map((item) => ({ id: item.id, ...item.data() }))
+    .sort((a, b) => Number(a.order || 0) - Number(b.order || 0));
 }
 
 async function loadAreaPresses() {
-  try {
-    const snapshot = await getDocs(collection(db, 'presses'));
-    presses = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
-  } catch (error) {
-    console.error('❌ Failed to load presses for areas:', error);
-    presses = [];
-  }
+  const snapshot = await getDocs(collection(db, 'presses'));
+  presses = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
 }
 
 function renderAreas() {
@@ -419,10 +282,17 @@ function renderAreas() {
 
     return `
       <div class="card">
-        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
           <div>
-            <strong>${area.name}</strong>
+            <strong style="color:${area.color || '#3b82f6'}">${area.name}</strong>
             <div class="muted">Order: ${area.order || 0}</div>
+          </div>
+
+          <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+            <input type="color" data-area-color="${area.id}" value="${area.color || '#3b82f6'}" />
+            <button class="button" data-save-area-color="${area.id}">Save Color</button>
+            <button class="button" data-rename-area="${area.id}">Rename</button>
+            <button class="button" data-delete-area="${area.id}">Delete</button>
           </div>
         </div>
 
@@ -432,7 +302,9 @@ function renderAreas() {
             <select data-area-assign="${area.id}">
               <option value="">Select press</option>
               ${unassignedPresses.map((press) => `
-                <option value="${press.id}">Press ${press.pressNumber} · ${press.area} · ${press.shift}</option>
+                <option value="${press.id}">
+  ${press.equipmentName || `${press.equipmentName || `Press ${press.pressNumber}`}`}
+</option>
               `).join('')}
             </select>
             <button class="button" data-area-assign-btn="${area.id}">Assign Press</button>
@@ -442,14 +314,14 @@ function renderAreas() {
         <div style="margin-top:14px; display:grid; gap:8px;">
           ${areaPresses.length
             ? areaPresses.map((press) => `
-                <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; padding:10px 12px; border:1px solid rgba(255,255,255,0.08); border-radius:12px;">
-                  <div>
-                    <strong>Press ${press.pressNumber}</strong>
-                    <div class="muted">${press.area} · ${press.shift}</div>
-                  </div>
-                  <button class="button" data-remove-press="${press.id}">Remove from Area</button>
+              <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; padding:10px 12px; border-left:6px solid ${area.color || '#3b82f6'}; border-radius:12px;">
+                <div>
+                  <strong>${press.equipmentName || `Press ${press.pressNumber}`}</strong>
+                  <div class="muted">${press.area || area.name} · ${press.shift}</div>
                 </div>
-              `).join('')
+                <button class="button" data-remove-press="${press.id}">Remove</button>
+              </div>
+            `).join('')
             : `<div class="muted">No presses assigned yet.</div>`
           }
         </div>
@@ -464,64 +336,139 @@ function wireAreaButtons() {
   document.querySelectorAll('[data-area-assign-btn]').forEach((btn) => {
     btn.addEventListener('click', async () => {
       const areaId = btn.dataset.areaAssignBtn;
+      const area = areas.find((item) => item.id === areaId);
       const select = document.querySelector(`[data-area-assign="${areaId}"]`);
-      if (!select || !select.value) {
-        alert('Pick a press first.');
-        return;
-      }
 
-      try {
-        await updateDoc(doc(db, 'presses', select.value), {
-          areaId,
-          updatedAt: new Date().toISOString()
-        });
+      if (!select?.value || !area) return alert('Pick a press first.');
 
-        await loadAreaPresses();
-        await loadPressTools();
-        renderAreas();
-      } catch (error) {
-        console.error('❌ Failed to assign press to area:', error);
-        alert('Assign press failed.');
-      }
+      await updateDoc(doc(db, 'presses', select.value), {
+        areaId,
+        areaName: area.name,
+        areaColor: area.color || '#3b82f6',
+        updatedAt: new Date().toISOString()
+      });
+
+      await loadAreaPresses();
+      await loadPressTools();
+      renderAreas();
     });
   });
 
   document.querySelectorAll('[data-remove-press]').forEach((btn) => {
     btn.addEventListener('click', async () => {
-      const pressId = btn.dataset.removePress;
+      await updateDoc(doc(db, 'presses', btn.dataset.removePress), {
+        areaId: null,
+        areaName: null,
+        areaColor: null,
+        updatedAt: new Date().toISOString()
+      });
 
-      try {
-        await updateDoc(doc(db, 'presses', pressId), {
-          areaId: null,
+      await loadAreaPresses();
+      await loadPressTools();
+      renderAreas();
+    });
+  });
+
+  document.querySelectorAll('[data-save-area-color]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const areaId = btn.dataset.saveAreaColor;
+      const input = document.querySelector(`[data-area-color="${areaId}"]`);
+      const area = areas.find((item) => item.id === areaId);
+      if (!input || !area) return;
+
+      await updateDoc(doc(db, 'areas', areaId), {
+        color: input.value,
+        updatedAt: new Date().toISOString()
+      });
+
+      const assigned = presses.filter((press) => press.areaId === areaId);
+
+      for (const press of assigned) {
+        await updateDoc(doc(db, 'presses', press.id), {
+          areaName: area.name,
+          areaColor: input.value,
           updatedAt: new Date().toISOString()
         });
-
-        await loadAreaPresses();
-        await loadPressTools();
-        renderAreas();
-      } catch (error) {
-        console.error('❌ Failed to remove press from area:', error);
-        alert('Remove press failed.');
       }
+
+      await loadAreas();
+      await loadAreaPresses();
+      await loadPressTools();
+      renderAreas();
+    });
+  });
+
+  document.querySelectorAll('[data-rename-area]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const areaId = btn.dataset.renameArea;
+      const area = areas.find((item) => item.id === areaId);
+      const name = prompt('New area name:', area?.name || '');
+      if (!name?.trim()) return;
+
+      await updateDoc(doc(db, 'areas', areaId), {
+        name: name.trim(),
+        updatedAt: new Date().toISOString()
+      });
+
+      const assigned = presses.filter((press) => press.areaId === areaId);
+
+      for (const press of assigned) {
+        await updateDoc(doc(db, 'presses', press.id), {
+          areaName: name.trim(),
+          areaColor: area?.color || '#3b82f6',
+          updatedAt: new Date().toISOString()
+        });
+      }
+
+      await loadAreas();
+      await loadAreaPresses();
+      await loadPressTools();
+      renderAreas();
+    });
+  });
+
+  document.querySelectorAll('[data-delete-area]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const areaId = btn.dataset.deleteArea;
+      if (!confirm('Delete this area? Presses will be unassigned.')) return;
+
+      const assigned = presses.filter((press) => press.areaId === areaId);
+
+      for (const press of assigned) {
+        await updateDoc(doc(db, 'presses', press.id), {
+          areaId: null,
+          areaName: null,
+          areaColor: null,
+          updatedAt: new Date().toISOString()
+        });
+      }
+
+      await deleteDoc(doc(db, 'areas', areaId));
+
+      await loadAreas();
+      await loadAreaPresses();
+      await loadPressTools();
+      renderAreas();
     });
   });
 }
-
 async function handleAddArea() {
-  const name = window.prompt('Area name (example: Forming, Rolling)');
+  const name = prompt('Area name (example: Forming, Rolling)');
   if (!name || !name.trim()) return;
 
   try {
     await addDoc(collection(db, 'areas'), {
       name: name.trim(),
+      color: '#3b82f6',
       order: areas.length + 1,
       createdAt: new Date().toISOString()
     });
 
     await loadAreas();
+    await loadAreaPresses();
     renderAreas();
   } catch (error) {
-    console.error('❌ Failed to add area:', error);
-    alert('Add area failed.');
+    console.error('❌ Add area failed:', error);
+    alert('Add area failed. Check console.');
   }
 }

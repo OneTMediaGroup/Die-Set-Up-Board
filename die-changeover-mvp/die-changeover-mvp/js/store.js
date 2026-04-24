@@ -81,7 +81,7 @@ export function upsertSetup({ pressId, slotIndex, setup, userName }) {
     updatedAt: new Date().toISOString()
   };
   savePresses(presses);
-  appendLog(userName, `Updated Press ${press.pressNumber} Slot ${slotIndex + 1}`);
+  appendLog(userName, `Updated ${press.equipmentName || `Press ${press.pressNumber}`} Slot ${slotIndex + 1}`);
 }
 
 export function clearSetup({ pressId, slotIndex, userName }) {
