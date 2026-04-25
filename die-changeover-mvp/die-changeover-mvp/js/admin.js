@@ -117,6 +117,10 @@ function renderUsers() {
   wireSaveButtons();
 }
 
+function equipmentLabel(press) {
+  return press.equipmentName || `Press ${press.pressNumber}`;
+}
+
 function wireSaveButtons() {
   document.querySelectorAll('[data-save]').forEach((btn) => {
     btn.addEventListener('click', async () => {
@@ -157,6 +161,18 @@ async function loadPressTools() {
   presses = await fetchPressesFromFirestore();
   renderPressTools();
 }
+function emptySlots() {
+  return [1, 2, 3, 4].map(() => ({
+    partNumber: '',
+    qtyRemaining: 0,
+    status: 'not_running',
+    notes: '',
+    updatedAt: new Date().toISOString(),
+    lastUpdatedBy: ''
+  }));
+}
+
+
 
 function renderPressTools() {
   const pressCard = document.querySelector('.grid-2 .card:first-child');
@@ -165,23 +181,41 @@ function renderPressTools() {
 
   pressCard.innerHTML = `
     <div class="section-header">
-      <h2>Presses</h2>
+      <h2>Equipment</h2>
     </div>
-    <div class="muted" style="margin-bottom:14px;">Admin override tools for lock and reset.</div>
+    <div class="muted" style="margin-bottom:14px;">Create, edit, delete, lock/unlock, and reset equipment.</div>
 
+    <div style="margin-bottom:18px;">
+      <label class="muted">Create New Equipment</label>
+      <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:6px;">
+        <input id="newEquipmentNameInput" placeholder="Example: 150B RH" />
+        <button id="createEquipmentBtn" class="button primary">Create Equipment</button>
+      </div>
+    </div>
+
+    <label class="muted">Select Equipment to Edit</label>
     <select id="adminPressSelect">
       ${presses.map((press) => `
         <option value="${press.id}">
-          ${press.equipmentName || `${press.equipmentName || `Press ${press.pressNumber}`}`} · ${press.area} · ${press.shift}${press.isLocked ? ' · LOCKED' : ''}
+          ${equipmentLabel(press)}${press.isLocked ? ' · LOCKED' : ''}
         </option>
       `).join('')}
     </select>
 
     <div id="adminPressSummary" class="muted" style="margin-top:12px;"></div>
 
+    <div style="margin-top:14px;">
+      <label class="muted">Equipment Name</label>
+      <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:6px;">
+        <input id="equipmentNameInput" placeholder="Example: 150B RH" />
+        <button id="saveEquipmentNameBtn" class="button primary">Save Name</button>
+      </div>
+    </div>
+
     <div style="display:flex; gap:12px; flex-wrap:wrap; margin-top:16px;">
       <button id="adminToggleLockBtn" class="button">Lock / Unlock</button>
-      <button id="adminResetPressBtn" class="button">Archive + Reset Press</button>
+      <button id="adminResetPressBtn" class="button">Archive + Reset</button>
+      <button id="deleteEquipmentBtn" class="button">Delete Equipment</button>
     </div>
   `;
 
@@ -195,6 +229,9 @@ function renderPressTools() {
   document.getElementById('adminPressSelect')?.addEventListener('change', renderPressSummary);
   document.getElementById('adminToggleLockBtn')?.addEventListener('click', handleToggleLock);
   document.getElementById('adminResetPressBtn')?.addEventListener('click', handleResetPress);
+  document.getElementById('saveEquipmentNameBtn')?.addEventListener('click', handleSaveEquipmentName);
+  document.getElementById('createEquipmentBtn')?.addEventListener('click', handleCreateEquipment);
+  document.getElementById('deleteEquipmentBtn')?.addEventListener('click', handleDeleteEquipment);
 
   renderPressSummary();
 }
@@ -203,14 +240,114 @@ function renderPressSummary() {
   const select = document.getElementById('adminPressSelect');
   const summary = document.getElementById('adminPressSummary');
   const lockBtn = document.getElementById('adminToggleLockBtn');
+  const nameInput = document.getElementById('equipmentNameInput');
+
   if (!select || !summary || !lockBtn) return;
 
   const press = presses.find((item) => item.id === select.value);
   if (!press) return;
 
   const activeCount = (press.slots || []).filter((slot) => slot.partNumber).length;
-  summary.textContent = `${press.equipmentName || `${press.equipmentName || `Press ${press.pressNumber}`}`} · ${activeCount} active setups · ${press.isLocked ? `Locked by ${press.lockedBy || 'Admin'}` : 'Unlocked'}`;
-  lockBtn.textContent = press.isLocked ? 'Unlock Press' : 'Lock Press';
+
+  summary.textContent = `${equipmentLabel(press)} · ${activeCount} active setups · ${
+    press.areaName ? `Area: ${press.areaName}` : 'Unassigned'
+  } · ${press.isLocked ? `Locked by ${press.lockedBy || 'Admin'}` : 'Unlocked'}`;
+
+  lockBtn.textContent = press.isLocked ? 'Unlock' : 'Lock';
+
+  if (nameInput) {
+    nameInput.value = press.equipmentName || '';
+  }
+}
+
+async function handleSaveEquipmentName() {
+  const select = document.getElementById('adminPressSelect');
+  const input = document.getElementById('equipmentNameInput');
+
+  if (!select || !input) return;
+
+  const pressId = select.value;
+  const name = input.value.trim();
+
+  if (!name) {
+    alert('Equipment name cannot be blank.');
+    input.focus();
+    return;
+  }
+
+  await updateDoc(doc(db, 'presses', pressId), {
+    equipmentName: name,
+    updatedAt: new Date().toISOString()
+  });
+
+  await loadAreaPresses();
+  await loadPressTools();
+  renderAreas();
+}
+
+
+async function handleCreateEquipment() {
+  const input = document.getElementById('newEquipmentNameInput');
+  const name = input?.value.trim();
+
+  if (!name) {
+    alert('Enter equipment name first.');
+    input?.focus();
+    return;
+  }
+
+  const nextNumber = presses.length
+    ? Math.max(...presses.map((press) => Number(press.pressNumber || 0))) + 1
+    : 1;
+
+  try {
+    await addDoc(collection(db, 'presses'), {
+      equipmentName: name,
+      pressNumber: nextNumber,
+      shift: '1',
+      areaId: null,
+      areaName: null,
+      areaColor: null,
+      isLocked: false,
+      slots: emptySlots(),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    });
+
+    input.value = '';
+
+    await loadAreaPresses();
+    await loadPressTools();
+    renderAreas();
+  } catch (error) {
+    console.error('❌ Failed to create equipment:', error);
+    alert('Create equipment failed.');
+  }
+}
+
+async function handleDeleteEquipment() {
+  const select = document.getElementById('adminPressSelect');
+  if (!select?.value) return;
+
+  const press = presses.find((item) => item.id === select.value);
+  if (!press) return;
+
+  const confirmed = confirm(
+    `Delete equipment "${equipmentLabel(press)}"?\n\nThis removes it from the system.`
+  );
+
+  if (!confirmed) return;
+
+  try {
+    await deleteDoc(doc(db, 'presses', press.id));
+
+    await loadAreaPresses();
+    await loadPressTools();
+    renderAreas();
+  } catch (error) {
+    console.error('❌ Failed to delete equipment:', error);
+    alert('Delete equipment failed.');
+  }
 }
 
 async function handleToggleLock() {
@@ -220,7 +357,7 @@ async function handleToggleLock() {
   if (!press) return;
 
   const targetState = !press.isLocked;
-  if (!confirm(`${targetState ? 'Lock' : 'Unlock'} ${press.equipmentName || `Press ${press.pressNumber}`}?`)) return;
+  if (!confirm(`${targetState ? 'Lock' : 'Unlock'} ${equipmentLabel(press)}?`)) return;
 
   await setPressLockInFirestore({
     pressId: press.id,
@@ -232,6 +369,8 @@ async function handleToggleLock() {
   await loadAreaPresses();
   renderAreas();
 }
+
+
 
 async function handleResetPress() {
   const select = document.getElementById('adminPressSelect');
@@ -303,8 +442,8 @@ function renderAreas() {
               <option value="">Select press</option>
               ${unassignedPresses.map((press) => `
                 <option value="${press.id}">
-  ${press.equipmentName || `${press.equipmentName || `Press ${press.pressNumber}`}`}
-</option>
+                ${equipmentLabel(press)}
+                </option>
               `).join('')}
             </select>
             <button class="button" data-area-assign-btn="${area.id}">Assign Press</button>
@@ -316,8 +455,8 @@ function renderAreas() {
             ? areaPresses.map((press) => `
               <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; padding:10px 12px; border-left:6px solid ${area.color || '#3b82f6'}; border-radius:12px;">
                 <div>
-                  <strong>${press.equipmentName || `Press ${press.pressNumber}`}</strong>
-                  <div class="muted">${press.area || area.name} · ${press.shift}</div>
+                  <strong>${equipmentLabel(press)}</strong>
+                  <div class="muted">${area.name}</div>
                 </div>
                 <button class="button" data-remove-press="${press.id}">Remove</button>
               </div>
