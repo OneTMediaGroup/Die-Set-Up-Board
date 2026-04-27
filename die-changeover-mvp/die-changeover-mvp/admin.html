@@ -10,7 +10,6 @@
 <body>
   <div class="app-shell">
 
-    <!-- SIDEBAR -->
     <aside class="sidebar dark">
       <div class="brand-logo large">MAGNA</div>
 
@@ -22,27 +21,66 @@
       </nav>
 
       <div class="sidebar-footer">
-  <div id="currentAdminUser" class="user-pill">Loading...</div>
-  <select id="userSwitcher" class="select" style="margin-top:10px;">
-    <option>Loading users...</option>
-  </select>
-</div>
+        <div id="currentAdminUser" class="user-pill">Loading...</div>
+        <select id="userSwitcher" class="select" style="margin-top:10px;">
+          <option>Loading users...</option>
+        </select>
+      </div>
     </aside>
 
-    <!-- MAIN -->
     <main class="main-content">
 
       <header class="topbar">
         <div>
           <h1>Admin / Maintenance</h1>
-          <p class="muted">System control, users, and operations</p>
+          <p class="muted">System control, users, equipment, areas, and operations</p>
         </div>
       </header>
 
-      <!-- USERS (MAIN FEATURE NOW) -->
+      <section class="grid-2">
+        <div class="card">
+          <div class="section-header">
+            <h2>Equipment</h2>
+          </div>
+          <div class="muted">
+            Loading equipment tools...
+          </div>
+        </div>
+<div class="card" id="equipmentCard"></div>
+<div class="card" id="systemControlsCard"></div>
+        <div class="card">
+          <div class="section-header">
+            <h2>System Controls</h2>
+          </div>
+          <div class="muted">
+            Loading controls...
+          </div>
+        </div>
+      </section>
+
       <section class="card">
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
-          
+          <div>
+            <h2>Areas</h2>
+            <p class="muted">Organize equipment by department</p>
+          </div>
+          <button id="addAreaBtn" class="button">Add Area</button>
+        </div>
+
+        <div id="areasList" style="margin-top:16px; display:grid; gap:12px;"></div>
+      </section>
+
+      <section class="card">
+        <div>
+          <h2>Admin Activity</h2>
+          <p class="muted">Recent system actions</p>
+        </div>
+
+        <div id="adminActivityFeed" style="margin-top:16px; display:grid; gap:10px;"></div>
+      </section>
+
+      <section class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
           <div>
             <h2>Users</h2>
             <p class="muted">Manage roles and access</p>
@@ -52,55 +90,14 @@
             <span class="muted">Count: <strong id="adminUsersCount">0</strong></span>
             <button id="refreshAdminUsersBtn" class="button">Refresh</button>
           </div>
-
         </div>
 
         <div id="adminUsersList" style="display:grid; gap:16px; margin-top:16px;"></div>
       </section>
 
-
-
-      <section class="card">
-  <div style="display:flex; justify-content:space-between; align-items:center;">
-    <div>
-      <h2>Areas</h2>
-      <p class="muted">Organize presses by department</p>
-    </div>
-    <button id="addAreaBtn" class="button">Add Area</button>
-  </div>
-
-  <div id="areasList" style="margin-top:16px; display:grid; gap:12px;"></div>
-</section>     
-      <!-- FUTURE BLOCKS (we keep structure ready but inactive) -->
-
-      <section class="grid-2">
-
-        <div class="card">
-          <div class="section-header">
-            <h2>Presses (Next)</h2>
-          </div>
-          <div class="muted">
-            Press configuration coming next step.
-          </div>
-        </div>
-
-        <div class="card">
-          <div class="section-header">
-            <h2>System Controls (Next)</h2>
-          </div>
-          <div class="muted">
-            Reset, clear, and archive controls coming next.
-          </div>
-        </div>
-
-      </section>
-
     </main>
   </div>
 
-  <!-- SCRIPTS -->
- 
   <script type="module" src="js/admin.js"></script>
-
 </body>
 </html>
