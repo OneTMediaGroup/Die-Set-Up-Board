@@ -2,7 +2,7 @@ import { isSupervisor, isAdmin } from './roles.js';
 import { getSession } from './store.js';
 import { watchPressesFromFirestore } from './firestore-presses.js';
 import { updateSetupInFirestore } from './firestore-write.js';
-import { activeSetupCount, equipmentLabel, getSlotsArray, renderPressQueueRow } from './supervisor-helpers.js';
+import { activeSetupCount, areaLabel, equipmentLabel, getSlotsArray, renderPressQueueRow } from './supervisor-helpers.js';
 
 let root = null;
 let presses = [];
@@ -80,7 +80,7 @@ function renderShell() {
         <h2>Current Queue</h2>
         <button class="button" id="refreshDailyBtn">Refresh</button>
       </div>
-      <div id="dailyQueue" class="supervisor-board" style="margin-top:12px;"></div>
+      <div id="dailyQueue" class="queue-area-list" style="margin-top:16px;"></div>
     </div>
   `;
 
@@ -142,14 +142,36 @@ function renderFromState() {
   }
 
   if (dailyQueue) {
-    dailyQueue.innerHTML = presses.length
-      ? presses.map((press) => renderPressQueueRow(press, {
-          selectedPressId,
-          selectedSlotIndex,
-          expanded: press.id === selectedPressId,
-          showAddSetup: false,
-          showMenu: false
-        })).join('')
+    const grouped = presses.reduce((groups, press) => {
+      const label = areaLabel(press);
+      if (!groups[label]) groups[label] = [];
+      groups[label].push(press);
+      return groups;
+    }, {});
+
+    const areaKeys = Object.keys(grouped).sort((a, b) => a.localeCompare(b));
+
+    dailyQueue.innerHTML = areaKeys.length
+      ? areaKeys.map((area) => `
+          <section class="queue-area-section">
+            <div class="queue-area-header">
+              <h3>${area}</h3>
+              <span class="muted">${grouped[area].length} equipment</span>
+            </div>
+            <div class="queue-equipment-list">
+              ${grouped[area]
+                .sort((a, b) => String(equipmentLabel(a)).localeCompare(String(equipmentLabel(b))))
+                .map((press) => renderPressQueueRow(press, {
+                  selectedPressId,
+                  selectedSlotIndex,
+                  expanded: press.id === selectedPressId,
+                  showAddSetup: false,
+                  showMenu: false
+                }))
+                .join('')}
+            </div>
+          </section>
+        `).join('')
       : `<div class="muted">No equipment loaded yet.</div>`;
 
     dailyQueue.querySelectorAll('[data-toggle-press]').forEach((row) => {
@@ -162,7 +184,8 @@ function renderFromState() {
     });
 
     dailyQueue.querySelectorAll('[data-pick-press][data-pick-slot]').forEach((card) => {
-      card.addEventListener('click', () => {
+      card.addEventListener('click', (event) => {
+        event.stopPropagation();
         selectedPressId = card.dataset.pickPress;
         selectedSlotIndex = card.dataset.pickSlot;
         renderFromState();
