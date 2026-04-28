@@ -190,7 +190,7 @@ function renderEquipmentRow(press) {
 function equipmentStatus(press, slots) {
   if (press.isLocked) return { label: 'Locked', className: 'blocked' };
   if (slots.some((slot) => slot.status === 'blocked')) return { label: 'On Hold', className: 'blocked' };
-  if (slots.some((slot) => slot.status === 'ready_for_changeover')) return { label: 'Ready', className: 'change_complete' };
+  if (slots.some((slot) => slot.status === 'ready_for_changeover')) return { label: 'READY FOR CHANGEOVER', className: 'ready_for_changeover' };
   if (slots.some((slot) => slot.status === 'change_in_progress')) return { label: 'In Progress', className: 'change_in_progress' };
   if (slots.some((slot) => slot.status === 'running')) return { label: 'Running', className: 'running' };
   if (slots.some((slot) => slot.partNumber)) return { label: 'Planned', className: 'not_running' };
@@ -200,9 +200,11 @@ function equipmentStatus(press, slots) {
 function renderDisplaySlot(slot, index) {
   const empty = !slot.partNumber;
   const statusClass = empty ? 'no_setup' : slot.status;
+  const isReady = slot.status === 'ready_for_changeover';
 
   return `
-    <div class="display-slot-card ${empty ? 'empty' : ''}">
+    <div class="display-slot-card ${empty ? 'empty' : ''} ${isReady ? 'ready-slot' : ''}">
+      ${isReady ? `<div class="display-ready-banner">READY FOR CHANGEOVER</div>` : ''}
       <div class="display-slot-topline">
         <strong>Slot ${index + 1}</strong>
         <span class="status-pill ${statusClass}">${empty ? 'No Setup' : statusLabel(slot.status)}</span>
