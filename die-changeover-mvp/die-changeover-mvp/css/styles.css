@@ -1358,3 +1358,37 @@ input, textarea, select {
 .display-equipment-row.current {
   border-left-color: var(--area-color, #2563eb) !important;
 }
+
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal.hidden {
+  display: none;
+}
+
+.modal-content {
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  width: 300px;
+}
+
+.modal-actions {
+  margin-top: 16px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.error-text {
+  color: red;
+  margin-top: 10px;
+  font-size: 13px;
+}
+
+
