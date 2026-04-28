@@ -973,3 +973,128 @@ input, textarea, select {
 .display-slot-card .status-pill { font-size:.76rem; padding:6px 8px; white-space:nowrap; }
 @media (max-width:1300px){ .display-equipment-row{ grid-template-columns:1fr; } }
 @media (max-width:900px){ .display-board-header,.display-brand-wrap,.display-controls{ align-items:stretch; flex-direction:column; } .display-board-scroll-area{ height:auto; min-height:calc(100vh - 240px); } .display-slot-strip{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
+
+/* Display Board TV layout cleanup - full-width equipment rows */
+.display-board-scroll-area {
+  padding: 30px 42px 64px;
+}
+
+.display-board-content {
+  gap: 30px;
+}
+
+.display-area-section {
+  border-radius: 24px;
+}
+
+.display-area-header {
+  padding: 24px 30px;
+}
+
+.display-equipment-list {
+  gap: 0;
+}
+
+.display-equipment-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 18px;
+  padding: 26px 30px 30px;
+  border-bottom: 1px solid #e5e7eb;
+  border-left: 10px solid var(--area-color);
+}
+
+.display-equipment-summary {
+  display: grid;
+  grid-template-columns: minmax(260px, 1.1fr) auto auto;
+  align-items: center;
+  gap: 22px;
+}
+
+.display-equipment-title strong {
+  font-size: 1.7rem;
+}
+
+.display-equipment-title span,
+.display-active-count {
+  font-size: 1.05rem;
+}
+
+.display-equipment-summary > .status-pill {
+  justify-self: end;
+  min-width: 132px;
+  justify-content: center;
+  font-size: 1rem;
+  padding: 12px 18px;
+}
+
+.display-active-count {
+  justify-self: end;
+  white-space: nowrap;
+}
+
+.display-slot-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
+  width: 100%;
+}
+
+.display-slot-card {
+  min-height: 168px;
+  padding: 18px;
+  border-radius: 18px;
+  gap: 14px;
+  overflow: hidden;
+}
+
+.display-slot-topline strong {
+  font-size: 1.15rem;
+}
+
+.display-slot-card .status-pill {
+  font-size: .86rem;
+  padding: 8px 12px;
+  max-width: 145px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.display-slot-main span,
+.display-slot-bottom {
+  font-size: 1rem;
+}
+
+.display-slot-main strong {
+  font-size: 1.38rem;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 1300px) {
+  .display-board-scroll-area {
+    padding: 24px 24px 44px;
+  }
+
+  .display-equipment-row {
+    padding: 22px 24px 26px;
+  }
+
+  .display-equipment-summary {
+    grid-template-columns: 1fr auto;
+  }
+
+  .display-active-count {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+
+  .display-slot-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 800px) {
+  .display-slot-strip {
+    grid-template-columns: 1fr;
+  }
+}
