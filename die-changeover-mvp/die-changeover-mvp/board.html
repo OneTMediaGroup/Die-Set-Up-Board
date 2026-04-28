@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Die Setter Board</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand-logo large">MAGNA</div>
+      <nav>
+        <a class="nav-link active" href="board.html">Die Setter Board</a>
+        <a class="nav-link" href="supervisor.html">Supervisor</a>
+        <a class="nav-link" href="admin.html">Admin / Maintenance</a>
+        <a class="nav-link" href="index.html">Home</a>
+      </nav>
+      <div class="sidebar-footer">
+  <div id="currentUserBoard" class="user-pill">Loading...</div>
+  <select id="userSwitcher" class="select" style="margin-top:10px;">
+    <option>Loading users...</option>
+  </select>
+</div>
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar">
+        <div>
+          <h1>Die Changeover Board</h1>
+          <p class="muted">Touchscreen floor view for die setters</p>
+        </div>
+        <div class="topbar-right">
+          <div class="header-stat"><span>Shift</span><strong>1</strong></div>
+          <div class="header-stat"><span>Last Sync</span><strong id="syncTimeBoard">--</strong></div>
+        </div>
+      </header>
+
+      <section class="toolbar card compact">
+        <div class="toolbar-row">
+          <label>
+            Area
+            <select id="areaFilterBoard">
+              <option value="all">All</option>
+              <option value="Arcur 1">Arcur 1</option>
+              <option value="Arcur 2">Arcur 2</option>
+            </select>
+          </label>
+          <label>
+            Shift
+            <select id="shiftFilterBoard">
+              <option value="all">All</option>
+              <option value="1">Shift 1</option>
+              <option value="2">Shift 2</option>
+              <option value="3">Shift 3</option>
+            </select>
+          </label>
+          <button class="button" id="refreshBoardBtn">Refresh</button>
+        </div>
+      </section>
+
+      <section class="press-grid" id="pressGrid"></section>
+    </main>
+  </div>
+
+  <dialog id="setupDialog" class="action-dialog">
+    <form method="dialog" class="dialog-card">
+      <div class="dialog-header">
+        <div>
+          <h2 id="dialogTitle">Setup</h2>
+          <p id="dialogSubtitle" class="muted"></p>
+        </div>
+        <button class="icon-button" value="cancel">✕</button>
+      </div>
+
+      <div class="dialog-body">
+        <div class="info-grid">
+          <div><span>Part</span><strong id="dialogPart">--</strong></div>
+          <div><span>Qty Remaining</span><strong id="dialogQty">--</strong></div>
+          <div><span>Status</span><strong id="dialogStatus">--</strong></div>
+          <div><span>Updated</span><strong id="dialogUpdated">--</strong></div>
+        </div>
+
+        <label>
+          Notes
+          <textarea id="dialogNotes" rows="4" placeholder="Add setup notes, issue details, or handoff comments..."></textarea>
+        </label>
+
+        <div class="quick-notes">
+          <button class="chip" type="button" data-note="Tooling ready">Tooling ready</button>
+          <button class="chip" type="button" data-note="Waiting on forklift">Waiting on forklift</button>
+          <button class="chip" type="button" data-note="Waiting on maintenance">Waiting on maintenance</button>
+          <button class="chip" type="button" data-note="Changeover cleared">Changeover cleared</button>
+          <button class="button" data-action="blocked">Flag Maintenance</button>
+        </div>
+      </div>
+
+      <div class="dialog-actions stack">
+        <button type="button" class="button primary full" data-action="running">Mark Running</button>
+        <button type="button" class="button warning full" data-action="change_in_progress">Change In Progress</button>
+        <button type="button" class="button success full" data-action="change_complete">Mark Complete</button>
+        <button type="button" class="button danger full" data-action="blocked">Flag Maintenance</button>
+        <button type="button" class="button full" data-action="clear">Clear Setup</button>
+        <button type="button" class="button full" data-action="save_notes">Save Notes Only</button>
+      </div>
+    </form>
+  </dialog>
+<script type="module" src="js/firebase-config.js"></script>
+  <script type="module" src="js/board.js"></script>
+</body>
+</html>
