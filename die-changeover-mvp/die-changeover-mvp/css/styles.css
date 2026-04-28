@@ -1098,3 +1098,66 @@ input, textarea, select {
     grid-template-columns: 1fr;
   }
 }
+
+/* ============================= */
+/* DISPLAY BOARD (TV OPTIMIZED) */
+/* ============================= */
+
+.display-board {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 16px 20px;
+}
+
+/* tighter area cards */
+.display-area {
+  margin-bottom: 20px;
+}
+
+/* equipment row stays clean */
+.display-equipment {
+  margin-bottom: 12px;
+}
+
+/* 🔥 KEY: slots grid becomes dense */
+.display-slots {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+/* smaller cards */
+.display-slot {
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 14px;
+}
+
+/* reduce text scale */
+.display-slot .part {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.display-slot .meta {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+/* ============================= */
+/* BIG SCREEN MODE (TV) */
+/* ============================= */
+
+@media (min-width: 1600px) {
+  .display-board {
+    max-width: 1800px;
+  }
+
+  .display-slots {
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  }
+
+  .display-slot {
+    font-size: 15px;
+  }
+}
