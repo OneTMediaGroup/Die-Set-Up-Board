@@ -95,6 +95,28 @@
         </div>
       </div>
 
+<div id="loginModal" class="modal hidden">
+  <div class="modal-content">
+    <h3>Die Setter Login</h3>
+
+    <label>Name</label>
+    <select id="loginUser"></select>
+
+    <label>PIN</label>
+    <input id="loginPin" type="password" placeholder="Enter PIN" />
+
+    <div class="modal-actions">
+      <button id="loginCancel" class="button">Cancel</button>
+      <button id="loginConfirm" class="button primary">Confirm</button>
+    </div>
+
+    <div id="loginError" class="error-text"></div>
+  </div>
+</div>
+
+
+
+      
       <div class="dialog-actions stack">
         <button type="button" class="button full" data-action="ready">Ready for Changeover</button>
         <button type="button" class="button success full" data-action="change_complete">Complete + Shift</button>
