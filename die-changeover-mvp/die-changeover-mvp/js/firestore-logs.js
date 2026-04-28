@@ -1,33 +1,32 @@
-import { db } from './firebase-config.js';
+import { db } from "./firebase-config.js";
 import {
   collection,
-  addDoc,
   query,
   orderBy,
   limit,
   onSnapshot
-} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-export async function addLogToFirestore({ user, message }) {
-  await addDoc(collection(db, 'logs'), {
-    user,
-    message,
-    createdAt: new Date().toISOString()
-  });
-}
-
+// 🔥 Live log watcher (used by Admin Activity panel)
 export function watchLogsFromFirestore(callback) {
-  const logsQuery = query(
-    collection(db, 'logs'),
-    orderBy('createdAt', 'desc'),
-    limit(25)
+  const logsRef = collection(db, "logs");
+
+  const q = query(
+    logsRef,
+    orderBy("createdAt", "desc"),
+    limit(50)
   );
 
-  return onSnapshot(logsQuery, (snapshot) => {
+  return onSnapshot(q, (snapshot) => {
     const logs = [];
+
     snapshot.forEach((doc) => {
-      logs.push({ id: doc.id, ...doc.data() });
+      logs.push({
+        id: doc.id,
+        ...doc.data()
+      });
     });
+
     callback(logs);
   });
 }

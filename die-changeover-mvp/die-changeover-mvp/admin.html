@@ -6,10 +6,8 @@
   <title>Admin / Maintenance</title>
   <link rel="stylesheet" href="css/styles.css" />
 </head>
-
 <body>
   <div class="app-shell">
-
     <aside class="sidebar dark">
       <div class="brand-logo large">MAGNA</div>
 
@@ -29,7 +27,6 @@
     </aside>
 
     <main class="main-content">
-
       <header class="topbar">
         <div>
           <h1>Admin / Maintenance</h1>
@@ -37,64 +34,24 @@
         </div>
       </header>
 
-      <section class="grid-2">
-        <div class="card">
+      <section class="grid-2" style="grid-template-columns:260px minmax(0,1fr); align-items:start;">
+        <aside class="card">
           <div class="section-header">
-            <h2>Equipment</h2>
+            <h2>Admin Tools</h2>
           </div>
-          <div class="muted">
-            Loading equipment tools...
+          <div style="display:grid; gap:10px; margin-top:14px;">
+            <button class="button primary full" data-admin-tool="equipment">Equipment</button>
+            <button class="button full" data-admin-tool="areas">Areas</button>
+            <button class="button full" data-admin-tool="users">Users</button>
+            <button class="button full" data-admin-tool="activity">Activity Logs</button>
+            <button class="button full" data-admin-tool="system">System Controls</button>
           </div>
-        </div>
-<div class="card" id="equipmentCard"></div>
-<div class="card" id="systemControlsCard"></div>
-        <div class="card">
-          <div class="section-header">
-            <h2>System Controls</h2>
-          </div>
-          <div class="muted">
-            Loading controls...
-          </div>
-        </div>
+        </aside>
+
+        <section id="adminContent" class="card">
+          <div class="muted">Loading admin tools...</div>
+        </section>
       </section>
-
-      <section class="card">
-        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
-          <div>
-            <h2>Areas</h2>
-            <p class="muted">Organize equipment by department</p>
-          </div>
-          <button id="addAreaBtn" class="button">Add Area</button>
-        </div>
-
-        <div id="areasList" style="margin-top:16px; display:grid; gap:12px;"></div>
-      </section>
-
-      <section class="card">
-        <div>
-          <h2>Admin Activity</h2>
-          <p class="muted">Recent system actions</p>
-        </div>
-
-        <div id="adminActivityFeed" style="margin-top:16px; display:grid; gap:10px;"></div>
-      </section>
-
-      <section class="card">
-        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
-          <div>
-            <h2>Users</h2>
-            <p class="muted">Manage roles and access</p>
-          </div>
-
-          <div style="display:flex; align-items:center; gap:12px;">
-            <span class="muted">Count: <strong id="adminUsersCount">0</strong></span>
-            <button id="refreshAdminUsersBtn" class="button">Refresh</button>
-          </div>
-        </div>
-
-        <div id="adminUsersList" style="display:grid; gap:16px; margin-top:16px;"></div>
-      </section>
-
     </main>
   </div>
 
