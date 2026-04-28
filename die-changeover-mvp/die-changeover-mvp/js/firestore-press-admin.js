@@ -69,7 +69,7 @@ export async function archiveAndResetPressInFirestore({ pressId, userName }) {
   const clearedSlots = slots.map(() => ({
     partNumber: '',
     qtyRemaining: 0,
-    status: 'not_running',
+    status: 'next',
     notes: '',
     updatedAt: new Date().toISOString(),
     lastUpdatedBy: userName

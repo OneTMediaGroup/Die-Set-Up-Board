@@ -1,6 +1,6 @@
 import { isDieSetter, isAdmin } from './roles.js';
 import { initStore, getSession, setSession } from './store.js';
-import { formatTime, formatDateTime, statusLabel } from './utils.js';
+import { formatTime, formatDateTime, statusLabel, normalizedSlotStatus } from './utils.js';
 import { watchPressesFromFirestore } from './firestore-presses.js';
 import { updateSetupInFirestore, completeAndShiftSetupInFirestore } from './firestore-write.js';
 import { fetchUsersFromFirestore } from './firestore-users.js';
@@ -72,8 +72,31 @@ function getActionUserName() {
 }
 
 function getSlotsArray(press) {
-  if (Array.isArray(press.slots)) return press.slots;
-  return Object.values(press.slots || {});
+  const raw = Array.isArray(press.slots) ? press.slots : Object.values(press.slots || {});
+  const slots = raw.slice(0, 4).map((slot, index) => {
+    const hasPart = Boolean(slot?.partNumber);
+    return {
+      partNumber: slot?.partNumber || '',
+      qtyRemaining: Number(slot?.qtyRemaining || 0),
+      status: hasPart ? normalizedSlotStatus(slot?.status, index, true) : (index === 0 ? 'current' : 'next'),
+      notes: slot?.notes || '',
+      updatedAt: slot?.updatedAt || '',
+      lastUpdatedBy: slot?.lastUpdatedBy || ''
+    };
+  });
+
+  while (slots.length < 4) {
+    slots.push({
+      partNumber: '',
+      qtyRemaining: 0,
+      status: slots.length === 0 ? 'current' : 'next',
+      notes: '',
+      updatedAt: '',
+      lastUpdatedBy: ''
+    });
+  }
+
+  return slots;
 }
 
 function getSelectedPressAndSlot() {
@@ -228,18 +251,19 @@ function renderBoard() {
 function renderSlot(press, slot, slotIndex) {
   const areaColor = press.areaColor || '#444';
   const empty = !slot.partNumber;
-  const displayStatus = empty ? 'no_setup' : slot.status;
+  const displayStatus = empty ? 'no_setup' : normalizedSlotStatus(slot.status, slotIndex, true);
   const canAct = (isDieSetter() || isAdmin()) && !press.isLocked;
-  const canPublicReady = !press.isLocked && !empty && slot.status !== 'ready_for_changeover';
-  const showQuickComplete = canAct && !empty && slot.status !== 'change_complete';
+  const canMarkReady = !press.isLocked && !empty && slotIndex === 0 && displayStatus !== 'ready';
+  const showCompleteShift = canAct && !empty && slotIndex === 0;
   const emptyClass = empty ? ' empty-slot-card' : '';
+  const readyClass = displayStatus === 'ready' ? ' ready-slot' : '';
   const lockedBadge = press.isLocked ? `<div class="muted" style="margin-bottom:8px;">🔒 Press locked</div>` : '';
 
   return `
-    <section class="slot-card${emptyClass}" style="border-left:6px solid ${areaColor};">
+    <section class="slot-card${emptyClass}${readyClass}" style="border-left:6px solid ${displayStatus === 'ready' ? '#22c55e' : areaColor};">
       <div class="slot-header">
         <h4>Slot ${slotIndex + 1}</h4>
-        <span class="status-pill ${displayStatus}">${empty ? 'No Setup' : statusLabel(slot.status)}</span>
+        <span class="status-pill ${displayStatus}">${empty ? 'No Setup' : statusLabel(displayStatus)}</span>
       </div>
 
       <div class="slot-meta">
@@ -253,13 +277,13 @@ function renderSlot(press, slot, slotIndex) {
 
       <div class="slot-actions">
         ${
-          canPublicReady
+          canMarkReady
             ? `<button class="button full" data-ready data-press-id="${press.id}" data-slot-index="${slotIndex}">Ready for Changeover</button>`
             : ''
         }
         ${
-          showQuickComplete
-            ? `<button class="button full" data-quick-complete data-press-id="${press.id}" data-slot-index="${slotIndex}">Complete + Shift</button>`
+          showCompleteShift
+            ? `<button class="button success full" data-quick-complete data-press-id="${press.id}" data-slot-index="${slotIndex}">Complete + Shift</button>`
             : ''
         }
         ${
@@ -286,7 +310,7 @@ async function handleReadyForChangeover(pressId, slotIndex) {
   const slots = getSlotsArray(press);
   const slot = slots[slotIndex];
   if (!slot || !slot.partNumber) return;
-  if (slot.status === 'ready_for_changeover') return;
+  if (normalizedSlotStatus(slot.status, slotIndex, true) === 'ready') return;
 
   const confirmed = window.confirm(
     `Mark ${press.equipmentName || `Press ${press.pressNumber}`} Slot ${slotIndex + 1} as READY FOR CHANGEOVER?`
@@ -302,7 +326,7 @@ async function handleReadyForChangeover(pressId, slotIndex) {
       setup: {
         partNumber: slot.partNumber,
         qtyRemaining: slot.qtyRemaining,
-        status: 'ready_for_changeover',
+        status: 'ready',
         notes: slot.notes || '',
         previousSetup: slot,
         expectedUpdatedAt: slot.updatedAt || null
@@ -332,7 +356,7 @@ async function handleQuickComplete(pressId, slotIndex) {
   const slots = getSlotsArray(press);
   const slot = slots[slotIndex];
   if (!slot || !slot.partNumber) return;
-  if (slot.status === 'change_complete') return;
+  if (normalizedSlotStatus(slot.status, slotIndex, true) === 'no_setup') return;
 
   const confirmed = window.confirm(
     `Mark ${press.equipmentName || `Press ${press.pressNumber}`} Slot ${slotIndex + 1} as Complete?\n\nPart: ${slot.partNumber}`
@@ -522,8 +546,7 @@ async function handleDialogAction(action) {
   }
 
   const actionLabels = {
-    running: 'mark this setup as Running',
-    change_in_progress: 'mark this setup as In Progress',
+    ready: 'mark this setup as Ready for Changeover',
     change_complete: 'complete this setup and shift the queue forward',
     blocked: 'flag this setup for Maintenance',
     save_notes: 'save these notes',
@@ -561,7 +584,7 @@ async function handleDialogAction(action) {
         setup: {
           partNumber: '',
           qtyRemaining: 0,
-          status: 'not_running',
+          status: 'next',
           notes: '',
           previousSetup: slot,
           expectedUpdatedAt: slot.updatedAt || null

@@ -1,14 +1,14 @@
-import { formatTime, statusLabel } from './utils.js';
+import { formatTime, statusLabel, normalizedSlotStatus } from './utils.js';
 
 export function equipmentLabel(press) {
   return press.equipmentName || `Press ${press.pressNumber}`;
 }
 
-function makeEmptySlot() {
+function makeEmptySlot(slotIndex = 0) {
   return {
     partNumber: '',
     qtyRemaining: 0,
-    status: 'not_running',
+    status: slotIndex === 0 ? 'current' : 'next',
     notes: '',
     updatedAt: '',
     lastUpdatedBy: ''
@@ -20,10 +20,23 @@ export function getSlotsArray(press) {
     ? press.slots
     : Object.values(press.slots || {});
 
-  const normalized = rawSlots.slice(0, 4).map((slot) => slot || makeEmptySlot());
+  const normalized = rawSlots.slice(0, 4).map((slot, index) => {
+    if (!slot) return makeEmptySlot(index);
+
+    const hasPart = Boolean(slot.partNumber);
+    return {
+      ...slot,
+      partNumber: slot.partNumber || '',
+      qtyRemaining: Number(slot.qtyRemaining || 0),
+      status: hasPart ? normalizedSlotStatus(slot.status, index, true) : (index === 0 ? 'current' : 'next'),
+      notes: slot.notes || '',
+      updatedAt: slot.updatedAt || '',
+      lastUpdatedBy: slot.lastUpdatedBy || ''
+    };
+  });
 
   while (normalized.length < 4) {
-    normalized.push(makeEmptySlot());
+    normalized.push(makeEmptySlot(normalized.length));
   }
 
   return normalized;
@@ -40,25 +53,66 @@ export function areaLabel(press) {
 export function equipmentStatus(press) {
   const slots = getSlotsArray(press);
   const active = slots.filter((slot) => slot.partNumber).length;
-  const ready = slots.filter((slot) => slot.status === 'ready_for_changeover').length;
+  const ready = slots.filter((slot) => normalizedSlotStatus(slot.status, 0, Boolean(slot.partNumber)) === 'ready').length;
   const blocked = slots.filter((slot) => slot.status === 'blocked').length;
-  const progress = slots.filter((slot) => slot.status === 'change_in_progress').length;
-  const complete = slots.filter((slot) => slot.status === 'change_complete').length;
 
-  if (press.isLocked) return { label: 'Locked', className: 'blocked', active, ready, blocked, progress, complete };
-  if (blocked > 0) return { label: 'On Hold', className: 'blocked', active, ready, blocked, progress, complete };
-  if (progress > 0) return { label: 'In Progress', className: 'change_in_progress', active, ready, blocked, progress, complete };
-  if (ready > 0) return { label: 'Ready', className: 'change_complete', active, ready, blocked, progress, complete };
-  if (active > 0) return { label: 'Planned', className: 'not_running', active, ready, blocked, progress, complete };
-  return { label: 'No Setups', className: 'no_setup', active, ready, blocked, progress, complete };
+  if (press.isLocked) return { label: 'Locked', className: 'blocked', active, ready, blocked };
+  if (blocked > 0) return { label: 'On Hold', className: 'blocked', active, ready, blocked };
+  if (ready > 0) return { label: 'Ready', className: 'ready', active, ready, blocked };
+  if (active > 0) return { label: 'Current / Next', className: 'current', active, ready, blocked };
+  return { label: 'No Setups', className: 'no_setup', active, ready, blocked };
 }
 
-export function renderSlotCard(press, slot, slotIndex, selected = false) {
+function slotDisplayStatus(slot, slotIndex) {
+  if (!slot.partNumber) return 'no_setup';
+  return normalizedSlotStatus(slot.status, slotIndex, true);
+}
+
+export function renderSlotCard(press, slot, slotIndex, selected = false, options = {}) {
+  const editable = Boolean(options.editable);
   const empty = !slot.partNumber;
-  const displayStatus = empty ? 'no_setup' : slot.status;
+  const displayStatus = slotDisplayStatus(slot, slotIndex);
   const selectedStyle = selected
     ? 'border:2px solid rgba(37,99,235,0.45); box-shadow:0 0 0 3px rgba(37,99,235,0.10); cursor:pointer;'
     : 'cursor:pointer;';
+
+  if (editable) {
+    return `
+      <section
+        class="slot-card supervisor-slot-pick supervisor-slot-edit${selected ? ' selected-slot-card' : ''}${empty ? ' empty-slot-card' : ''}"
+        data-pick-press="${press.id}"
+        data-pick-slot="${slotIndex}"
+        style="${selectedStyle}"
+      >
+        <div class="slot-header">
+          <h4>Slot ${slotIndex + 1}</h4>
+          <span class="status-pill ${displayStatus}">${empty ? 'No Setup' : statusLabel(displayStatus)}</span>
+        </div>
+
+        <div class="inline-slot-form" data-inline-press="${press.id}" data-inline-slot="${slotIndex}">
+          <label>
+            <span>Part</span>
+            <input data-slot-part value="${slot.partNumber || ''}" placeholder="Part number" />
+          </label>
+          <label>
+            <span>Qty</span>
+            <input data-slot-qty type="number" min="0" value="${slot.partNumber ? slot.qtyRemaining || 0 : ''}" placeholder="Qty" />
+          </label>
+          <label class="inline-notes">
+            <span>Notes</span>
+            <textarea data-slot-notes rows="2" placeholder="Notes">${slot.notes || ''}</textarea>
+          </label>
+          <div class="inline-slot-actions">
+            <button type="button" class="button primary" data-save-slot="${press.id}" data-slot-index="${slotIndex}">Save</button>
+            ${slotIndex === 0 && !empty && displayStatus !== 'ready' ? `<button type="button" class="button success" data-ready-slot="${press.id}" data-slot-index="${slotIndex}">Ready</button>` : ''}
+            ${!empty ? `<button type="button" class="button" data-clear-slot="${press.id}" data-slot-index="${slotIndex}">Clear</button>` : ''}
+          </div>
+        </div>
+
+        <div class="muted">Updated ${slot.updatedAt ? formatTime(slot.updatedAt) : '—'}</div>
+      </section>
+    `;
+  }
 
   return `
     <section
@@ -69,7 +123,7 @@ export function renderSlotCard(press, slot, slotIndex, selected = false) {
     >
       <div class="slot-header">
         <h4>Slot ${slotIndex + 1}</h4>
-        <span class="status-pill ${displayStatus}">${empty ? 'No Setup' : statusLabel(slot.status)}</span>
+        <span class="status-pill ${displayStatus}">${empty ? 'No Setup' : statusLabel(displayStatus)}</span>
       </div>
       <div class="slot-meta">
         <div class="meta-box"><span>Part</span><strong>${slot.partNumber || '—'}</strong></div>
@@ -89,7 +143,8 @@ function normalizeQueueOptions(arg1, arg2, arg3) {
       selectedSlotIndex: arg1.selectedSlotIndex || '',
       expanded: Boolean(arg1.expanded),
       showAddSetup: Boolean(arg1.showAddSetup),
-      showMenu: Boolean(arg1.showMenu)
+      showMenu: Boolean(arg1.showMenu),
+      editable: Boolean(arg1.editable)
     };
   }
 
@@ -98,7 +153,8 @@ function normalizeQueueOptions(arg1, arg2, arg3) {
     selectedSlotIndex: arg2 || '',
     expanded: Boolean(arg3),
     showAddSetup: false,
-    showMenu: false
+    showMenu: false,
+    editable: false
   };
 }
 
@@ -108,14 +164,6 @@ export function renderPressQueueRow(press, arg1 = '', arg2 = '', arg3 = false) {
   const status = equipmentStatus(press);
   const selectedOnPress = press.id === options.selectedPressId;
   const chevron = options.expanded ? '⌄' : '›';
-
-  const sortedSlots = [...slots].sort((a, b) => {
-    const aReady = a.status === 'ready_for_changeover';
-    const bReady = b.status === 'ready_for_changeover';
-    if (aReady && !bReady) return -1;
-    if (!aReady && bReady) return 1;
-    return 0;
-  });
 
   return `
     <article class="supervisor-equipment-row${options.expanded ? ' expanded' : ''}${selectedOnPress ? ' selected-equipment-row' : ''}">
@@ -132,10 +180,9 @@ export function renderPressQueueRow(press, arg1 = '', arg2 = '', arg3 = false) {
 
       ${options.expanded ? `
         <div class="queue-expanded-slots">
-          ${sortedSlots.map((slot) => {
-            const originalIndex = slots.indexOf(slot);
+          ${slots.map((slot, originalIndex) => {
             const selected = press.id === options.selectedPressId && String(originalIndex) === String(options.selectedSlotIndex);
-            return renderSlotCard(press, slot, originalIndex, selected);
+            return renderSlotCard(press, slot, originalIndex, selected, { editable: options.editable });
           }).join('')}
         </div>
       ` : ''}

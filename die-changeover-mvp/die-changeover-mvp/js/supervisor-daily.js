@@ -27,76 +27,26 @@ function renderShell() {
     <div class="admin-content-header">
       <div>
         <h2>Daily Setup</h2>
-        <p class="muted">Load or update the planned setups for each equipment slot.</p>
+        <p class="muted">Edit setups directly inside each expanded equipment row.</p>
+      </div>
+      <div class="topbar-right">
+        <div class="header-stat"><span>Equipment</span><strong id="dailyPressCount">--</strong></div>
+        <div class="header-stat"><span>Open Setups</span><strong id="dailySetupCount">--</strong></div>
       </div>
     </div>
 
-    <div class="admin-card">
+    <div class="admin-card queue-list-card">
       <div class="section-header">
         <div>
-          <h2>Add / Update Setup</h2>
-          <div id="dailyTarget" class="muted">Choose equipment and slot.</div>
+          <h2>Current / Next Queue</h2>
+          <div class="muted">Slot 1 is Current. Slots 2-4 are Next. Expand a row to edit the slots.</div>
         </div>
-        <div class="topbar-right">
-          <div class="header-stat"><span>Equipment</span><strong id="dailyPressCount">--</strong></div>
-          <div class="header-stat"><span>Open Setups</span><strong id="dailySetupCount">--</strong></div>
-        </div>
-      </div>
-
-      <form id="setupForm" class="form-grid" style="margin-top:16px;">
-        <label>
-          Equipment
-          <select id="pressSelect" required></select>
-        </label>
-        <label>
-          Slot
-          <select id="slotSelect" required>
-            <option value="0">Slot 1</option>
-            <option value="1">Slot 2</option>
-            <option value="2">Slot 3</option>
-            <option value="3">Slot 4</option>
-          </select>
-        </label>
-        <label>
-          Part Number
-          <input id="partInput" required placeholder="TT7896A" />
-        </label>
-        <label>
-          Qty Remaining
-          <input id="qtyInput" type="number" min="0" required placeholder="120" />
-        </label>
-        <label class="full-span">
-          Notes
-          <textarea id="notesInput" rows="3" placeholder="Supervisor instructions, timing notes, issue details..."></textarea>
-        </label>
-        <div class="form-actions full-span">
-          <button type="submit" class="button primary">Save Setup</button>
-          <button type="button" id="clearFormBtn" class="button">Clear Fields</button>
-        </div>
-      </form>
-    </div>
-
-    <div class="admin-card">
-      <div class="section-header">
-        <h2>Current Queue</h2>
         <button class="button" id="refreshDailyBtn">Refresh</button>
       </div>
       <div id="dailyQueue" class="queue-area-list" style="margin-top:16px;"></div>
     </div>
   `;
 
-  root.querySelector('#setupForm')?.addEventListener('submit', handleSubmit);
-  root.querySelector('#pressSelect')?.addEventListener('change', () => {
-    selectedPressId = root.querySelector('#pressSelect')?.value || '';
-    autofillForm();
-    renderFromState();
-  });
-  root.querySelector('#slotSelect')?.addEventListener('change', () => {
-    selectedSlotIndex = root.querySelector('#slotSelect')?.value || '0';
-    autofillForm();
-    renderFromState();
-  });
-  root.querySelector('#clearFormBtn')?.addEventListener('click', clearInputs);
   root.querySelector('#refreshDailyBtn')?.addEventListener('click', renderFromState);
 }
 
@@ -105,195 +55,222 @@ function startPressWatcher() {
     presses = livePresses;
     if (!selectedPressId && presses[0]) selectedPressId = presses[0].id;
     renderFromState();
-    autofillForm();
   });
 }
 
 function renderFromState() {
   if (!root) return;
 
-  const pressSelect = root.querySelector('#pressSelect');
-  const slotSelect = root.querySelector('#slotSelect');
   const dailyQueue = root.querySelector('#dailyQueue');
   const dailyPressCount = root.querySelector('#dailyPressCount');
   const dailySetupCount = root.querySelector('#dailySetupCount');
-  const dailyTarget = root.querySelector('#dailyTarget');
 
   if (dailyPressCount) dailyPressCount.textContent = String(presses.length);
   if (dailySetupCount) dailySetupCount.textContent = String(activeSetupCount(presses));
 
-  if (pressSelect) {
-    const current = selectedPressId || pressSelect.value || presses[0]?.id || '';
-    pressSelect.innerHTML = presses.map((press) => `<option value="${press.id}">${equipmentLabel(press)}</option>`).join('');
-    if (current && presses.some((press) => press.id === current)) {
-      pressSelect.value = current;
-      selectedPressId = current;
-    }
-  }
+  if (!dailyQueue) return;
 
-  if (slotSelect) {
-    slotSelect.value = selectedSlotIndex || '0';
-  }
+  const grouped = presses.reduce((groups, press) => {
+    const label = areaLabel(press);
+    if (!groups[label]) groups[label] = [];
+    groups[label].push(press);
+    return groups;
+  }, {});
 
-  const selectedPress = presses.find((press) => press.id === selectedPressId);
-  if (dailyTarget) {
-    dailyTarget.textContent = selectedPress
-      ? `Target: ${equipmentLabel(selectedPress)} · Slot ${Number(selectedSlotIndex || 0) + 1}`
-      : 'No equipment selected.';
-  }
+  const areaKeys = Object.keys(grouped).sort((a, b) => a.localeCompare(b));
 
-  if (dailyQueue) {
-    const grouped = presses.reduce((groups, press) => {
-      const label = areaLabel(press);
-      if (!groups[label]) groups[label] = [];
-      groups[label].push(press);
-      return groups;
-    }, {});
+  dailyQueue.innerHTML = areaKeys.length
+    ? areaKeys.map((area) => `
+        <section class="queue-area-section">
+          <div class="queue-area-header">
+            <h3>${area}</h3>
+            <span class="muted">${grouped[area].length} equipment</span>
+          </div>
+          <div class="queue-equipment-list">
+            ${grouped[area]
+              .sort((a, b) => String(equipmentLabel(a)).localeCompare(String(equipmentLabel(b)), undefined, { numeric: true }))
+              .map((press) => renderPressQueueRow(press, {
+                selectedPressId,
+                selectedSlotIndex,
+                expanded: press.id === expandedPressId,
+                editable: true,
+                showAddSetup: false,
+                showMenu: false
+              }))
+              .join('')}
+          </div>
+        </section>
+      `).join('')
+    : `<div class="muted">No equipment loaded yet.</div>`;
 
-    const areaKeys = Object.keys(grouped).sort((a, b) => a.localeCompare(b));
-
-    dailyQueue.innerHTML = areaKeys.length
-      ? areaKeys.map((area) => `
-          <section class="queue-area-section">
-            <div class="queue-area-header">
-              <h3>${area}</h3>
-              <span class="muted">${grouped[area].length} equipment</span>
-            </div>
-            <div class="queue-equipment-list">
-              ${grouped[area]
-                .sort((a, b) => String(equipmentLabel(a)).localeCompare(String(equipmentLabel(b))))
-                .map((press) => renderPressQueueRow(press, {
-                  selectedPressId,
-                  selectedSlotIndex,
-                  expanded: press.id === expandedPressId,
-                  showAddSetup: false,
-                  showMenu: false
-                }))
-                .join('')}
-            </div>
-          </section>
-        `).join('')
-      : `<div class="muted">No equipment loaded yet.</div>`;
-
-    dailyQueue.querySelectorAll('[data-toggle-press]').forEach((row) => {
-      row.addEventListener('click', () => {
-        const pressId = row.dataset.togglePress;
-        if (!pressId) return;
-
-        if (expandedPressId === pressId) {
-          expandedPressId = '';
-        } else {
-          expandedPressId = pressId;
-          selectedPressId = pressId;
-          selectedSlotIndex = '0';
-        }
-
-        renderFromState();
-        autofillForm();
-      });
-    });
-
-    dailyQueue.querySelectorAll('[data-pick-press][data-pick-slot]').forEach((card) => {
-      card.addEventListener('click', (event) => {
-        event.stopPropagation();
-        selectedPressId = card.dataset.pickPress;
-        expandedPressId = card.dataset.pickPress;
-        selectedSlotIndex = card.dataset.pickSlot;
-        renderFromState();
-        autofillForm();
-      });
-    });
-  }
+  wireDailyQueue();
 }
 
-function selectedSlot() {
-  const press = presses.find((p) => p.id === selectedPressId);
+function wireDailyQueue() {
+  root.querySelectorAll('[data-toggle-press]').forEach((row) => {
+    row.addEventListener('click', () => {
+      const pressId = row.dataset.togglePress;
+      if (!pressId) return;
+
+      if (expandedPressId === pressId) {
+        expandedPressId = '';
+      } else {
+        expandedPressId = pressId;
+        selectedPressId = pressId;
+        selectedSlotIndex = '0';
+      }
+
+      renderFromState();
+    });
+  });
+
+  root.querySelectorAll('[data-pick-press][data-pick-slot]').forEach((card) => {
+    card.addEventListener('click', (event) => {
+      event.stopPropagation();
+      selectedPressId = card.dataset.pickPress;
+      expandedPressId = card.dataset.pickPress;
+      selectedSlotIndex = card.dataset.pickSlot;
+      renderFromState();
+    });
+  });
+
+  root.querySelectorAll('[data-save-slot]').forEach((button) => {
+    button.addEventListener('click', async (event) => {
+      event.stopPropagation();
+      await saveInlineSlot(button.dataset.saveSlot, Number(button.dataset.slotIndex));
+    });
+  });
+
+  root.querySelectorAll('[data-ready-slot]').forEach((button) => {
+    button.addEventListener('click', async (event) => {
+      event.stopPropagation();
+      await markInlineReady(button.dataset.readySlot, Number(button.dataset.slotIndex));
+    });
+  });
+
+  root.querySelectorAll('[data-clear-slot]').forEach((button) => {
+    button.addEventListener('click', async (event) => {
+      event.stopPropagation();
+      await clearInlineSlot(button.dataset.clearSlot, Number(button.dataset.slotIndex));
+    });
+  });
+}
+
+function getPressAndSlot(pressId, slotIndex) {
+  const press = presses.find((item) => item.id === pressId);
   if (!press) return null;
   const slots = getSlotsArray(press);
-  return { press, slot: slots[Number(selectedSlotIndex)] || null };
+  const slot = slots[slotIndex];
+  return { press, slot };
 }
 
-function autofillForm() {
-  const data = selectedSlot();
-  if (!data?.slot) return;
-
-  const partInput = root.querySelector('#partInput');
-  const qtyInput = root.querySelector('#qtyInput');
-  const notesInput = root.querySelector('#notesInput');
-
-  if (partInput) partInput.value = data.slot.partNumber || '';
-  if (qtyInput) qtyInput.value = data.slot.qtyRemaining || '';
-  if (notesInput) notesInput.value = data.slot.notes || '';
+function getInlineForm(pressId, slotIndex) {
+  return root.querySelector(`[data-inline-press="${pressId}"][data-inline-slot="${slotIndex}"]`);
 }
 
-function clearInputs() {
-  root.querySelector('#partInput').value = '';
-  root.querySelector('#qtyInput').value = '';
-  root.querySelector('#notesInput').value = '';
-}
-
-function validateSetupForm() {
-  const partInput = root.querySelector('#partInput');
-  const qtyInput = root.querySelector('#qtyInput');
-  const notesInput = root.querySelector('#notesInput');
-  const partNumber = partInput.value.trim();
-  const qtyValue = Number(qtyInput.value);
-
-  if (!partNumber) {
-    alert('Part number is required.');
-    partInput.focus();
-    return null;
-  }
-
-  if (!Number.isFinite(qtyValue) || qtyValue <= 0) {
-    alert('Quantity must be greater than 0.');
-    qtyInput.focus();
-    return null;
-  }
-
-  return {
-    partNumber,
-    qtyRemaining: qtyValue,
-    notes: notesInput.value.trim()
-  };
-}
-
-async function handleSubmit(event) {
-  event.preventDefault();
-
+async function saveInlineSlot(pressId, slotIndex) {
   if (!(isSupervisor() || isAdmin())) {
     alert('Only supervisors or admins can update planned setups.');
     return;
   }
 
-  const session = getSession() || { name: 'Supervisor Demo' };
-  const validated = validateSetupForm();
-  if (!validated) return;
+  const form = getInlineForm(pressId, slotIndex);
+  const data = getPressAndSlot(pressId, slotIndex);
+  if (!form || !data) return;
 
-  const data = selectedSlot();
-  if (!data?.press || !data.slot) return;
+  const partNumber = form.querySelector('[data-slot-part]')?.value.trim() || '';
+  const qtyValue = Number(form.querySelector('[data-slot-qty]')?.value || 0);
+  const notes = form.querySelector('[data-slot-notes]')?.value.trim() || '';
+
+  if (!partNumber) {
+    alert('Part number is required. Use Clear to remove a setup.');
+    return;
+  }
+
+  if (!Number.isFinite(qtyValue) || qtyValue <= 0) {
+    alert('Quantity must be greater than 0.');
+    return;
+  }
+
+  const session = getSession() || { name: 'Supervisor Demo' };
 
   try {
     await updateSetupInFirestore({
-      pressId: data.press.id,
-      slotIndex: Number(selectedSlotIndex),
+      pressId,
+      slotIndex,
       userName: session.name,
       setup: {
-        partNumber: validated.partNumber,
-        qtyRemaining: validated.qtyRemaining,
-        status: 'not_running',
-        notes: validated.notes,
+        partNumber,
+        qtyRemaining: qtyValue,
+        status: slotIndex === 0 ? 'current' : 'next',
+        notes,
         previousSetup: data.slot || null,
         expectedUpdatedAt: data.slot?.updatedAt || null
       }
     });
   } catch (error) {
-    if (error?.code === 'slot-conflict') {
-      alert(`This slot was updated by ${error.lastUpdatedBy || 'another user'} before your save.\n\nPlease review the latest data and try again.`);
-      return;
-    }
-
-    console.error('❌ Supervisor submit failed:', error);
-    alert('Save setup failed.');
+    handleSaveError(error);
   }
+}
+
+async function markInlineReady(pressId, slotIndex) {
+  const data = getPressAndSlot(pressId, slotIndex);
+  if (!data?.slot?.partNumber) return;
+
+  const session = getSession() || { name: 'Supervisor Demo' };
+
+  try {
+    await updateSetupInFirestore({
+      pressId,
+      slotIndex,
+      userName: session.name,
+      setup: {
+        partNumber: data.slot.partNumber,
+        qtyRemaining: data.slot.qtyRemaining,
+        status: 'ready',
+        notes: data.slot.notes || '',
+        previousSetup: data.slot,
+        expectedUpdatedAt: data.slot.updatedAt || null
+      }
+    });
+  } catch (error) {
+    handleSaveError(error);
+  }
+}
+
+async function clearInlineSlot(pressId, slotIndex) {
+  const data = getPressAndSlot(pressId, slotIndex);
+  if (!data?.slot?.partNumber) return;
+
+  if (!confirm(`Clear ${equipmentLabel(data.press)} Slot ${slotIndex + 1}?`)) return;
+
+  const session = getSession() || { name: 'Supervisor Demo' };
+
+  try {
+    await updateSetupInFirestore({
+      pressId,
+      slotIndex,
+      userName: session.name,
+      setup: {
+        partNumber: '',
+        qtyRemaining: 0,
+        status: 'next',
+        notes: '',
+        previousSetup: data.slot,
+        expectedUpdatedAt: data.slot.updatedAt || null
+      }
+    });
+  } catch (error) {
+    handleSaveError(error);
+  }
+}
+
+function handleSaveError(error) {
+  if (error?.code === 'slot-conflict') {
+    alert(`This slot was updated by ${error.lastUpdatedBy || 'another user'} before your save. Please review the latest data and try again.`);
+    return;
+  }
+
+  console.error('❌ Supervisor inline save failed:', error);
+  alert('Save failed.');
 }

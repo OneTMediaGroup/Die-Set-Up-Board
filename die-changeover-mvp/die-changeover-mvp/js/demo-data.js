@@ -6,37 +6,36 @@ export const demoUsers = [
 ];
 
 export const demoStatuses = [
-  { id: 'running', label: 'Running', color: 'grey' },
-  { id: 'change_in_progress', label: 'Change In Progress', color: 'yellow' },
-  { id: 'change_complete', label: 'Change Complete', color: 'green' },
-  { id: 'blocked', label: 'Blocked', color: 'red' },
-  { id: 'not_running', label: 'Not Running', color: 'lightgrey' }
+  { id: 'current', label: 'Current', color: 'blue' },
+  { id: 'next', label: 'Next', color: 'grey' },
+  { id: 'ready', label: 'Ready for Changeover', color: 'green' },
+  { id: 'blocked', label: 'Blocked', color: 'red' }
 ];
 
 export const demoPresses = [
   { id: 'p20', pressNumber: 20, area: 'Arcur 1', shift: '1', slots: [
-    { partNumber: '600M02', qtyRemaining: 111, status: 'not_running', notes: '', updatedAt: nowMinus(40) },
-    { partNumber: 'T477005A', qtyRemaining: 123, status: 'running', notes: 'Tooling ready', updatedAt: nowMinus(22) },
-    { partNumber: '681SP3', qtyRemaining: 1447, status: 'change_in_progress', notes: 'Waiting on forklift', updatedAt: nowMinus(8) },
-    { partNumber: '300W02', qtyRemaining: 1, status: 'change_complete', notes: 'Ready to clear', updatedAt: nowMinus(4) }
+    { partNumber: '600M02', qtyRemaining: 111, status: 'next', notes: '', updatedAt: nowMinus(40) },
+    { partNumber: 'T477005A', qtyRemaining: 123, status: 'current', notes: 'Tooling ready', updatedAt: nowMinus(22) },
+    { partNumber: '681SP3', qtyRemaining: 1447, status: 'ready', notes: 'Waiting on forklift', updatedAt: nowMinus(8) },
+    { partNumber: '300W02', qtyRemaining: 1, status: 'current', notes: 'Ready to clear', updatedAt: nowMinus(4) }
   ]},
   { id: 'p22', pressNumber: 22, area: 'Arcur 1', shift: '1', slots: [
-    { partNumber: '600W02', qtyRemaining: 556, status: 'change_in_progress', notes: '', updatedAt: nowMinus(30) },
-    { partNumber: '681SP3', qtyRemaining: 888, status: 'change_complete', notes: '', updatedAt: nowMinus(20) },
-    { partNumber: '', qtyRemaining: 0, status: 'not_running', notes: '', updatedAt: nowMinus(55) },
-    { partNumber: '', qtyRemaining: 0, status: 'not_running', notes: '', updatedAt: nowMinus(55) }
+    { partNumber: '600W02', qtyRemaining: 556, status: 'ready', notes: '', updatedAt: nowMinus(30) },
+    { partNumber: '681SP3', qtyRemaining: 888, status: 'current', notes: '', updatedAt: nowMinus(20) },
+    { partNumber: '', qtyRemaining: 0, status: 'next', notes: '', updatedAt: nowMinus(55) },
+    { partNumber: '', qtyRemaining: 0, status: 'next', notes: '', updatedAt: nowMinus(55) }
   ]},
   { id: 'p34', pressNumber: 34, area: 'Arcur 2', shift: '2', slots: [
-    { partNumber: '600M02', qtyRemaining: 547, status: 'running', notes: 'Runner verified', updatedAt: nowMinus(13) },
-    { partNumber: '', qtyRemaining: 0, status: 'not_running', notes: '', updatedAt: nowMinus(35) },
-    { partNumber: '', qtyRemaining: 0, status: 'not_running', notes: '', updatedAt: nowMinus(35) },
-    { partNumber: '', qtyRemaining: 0, status: 'not_running', notes: '', updatedAt: nowMinus(35) }
+    { partNumber: '600M02', qtyRemaining: 547, status: 'current', notes: 'Runner verified', updatedAt: nowMinus(13) },
+    { partNumber: '', qtyRemaining: 0, status: 'next', notes: '', updatedAt: nowMinus(35) },
+    { partNumber: '', qtyRemaining: 0, status: 'next', notes: '', updatedAt: nowMinus(35) },
+    { partNumber: '', qtyRemaining: 0, status: 'next', notes: '', updatedAt: nowMinus(35) }
   ]},
   { id: 'p59', pressNumber: 59, area: 'Arcur 2', shift: '3', slots: [
-    { partNumber: 'T725005', qtyRemaining: 658, status: 'change_complete', notes: 'Changeover cleared', updatedAt: nowMinus(12) },
-    { partNumber: 'T728005', qtyRemaining: 147, status: 'change_complete', notes: '', updatedAt: nowMinus(10) },
-    { partNumber: 'T681005', qtyRemaining: 77743, status: 'running', notes: '', updatedAt: nowMinus(6) },
-    { partNumber: 'T725005', qtyRemaining: 4447, status: 'not_running', notes: 'Queued next', updatedAt: nowMinus(2) }
+    { partNumber: 'T725005', qtyRemaining: 658, status: 'current', notes: 'Changeover cleared', updatedAt: nowMinus(12) },
+    { partNumber: 'T728005', qtyRemaining: 147, status: 'current', notes: '', updatedAt: nowMinus(10) },
+    { partNumber: 'T681005', qtyRemaining: 77743, status: 'current', notes: '', updatedAt: nowMinus(6) },
+    { partNumber: 'T725005', qtyRemaining: 4447, status: 'next', notes: 'Queued next', updatedAt: nowMinus(2) }
   ]}
 ];
 

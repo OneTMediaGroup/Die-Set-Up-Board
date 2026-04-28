@@ -11,7 +11,7 @@ export function emptySlots() {
   return [1, 2, 3, 4].map(() => ({
     partNumber: '',
     qtyRemaining: 0,
-    status: 'not_running',
+    status: 'next',
     notes: '',
     updatedAt: new Date().toISOString(),
     lastUpdatedBy: ''

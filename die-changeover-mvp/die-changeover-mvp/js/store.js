@@ -92,7 +92,7 @@ export function clearSetup({ pressId, slotIndex, userName }) {
     setup: {
       partNumber: '',
       qtyRemaining: 0,
-      status: 'not_running',
+      status: 'next',
       notes: ''
     }
   });

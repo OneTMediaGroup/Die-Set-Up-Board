@@ -1,5 +1,5 @@
 import { watchPressesFromFirestore } from './firestore-presses.js';
-import { formatTime, statusLabel } from './utils.js';
+import { formatTime, statusLabel, normalizedSlotStatus } from './utils.js';
 
 const areaFilter = document.getElementById('displayAreaFilter');
 const autoScrollSelect = document.getElementById('displayAutoScroll');
@@ -66,7 +66,7 @@ function emptySlot() {
   return {
     partNumber: '',
     qtyRemaining: 0,
-    status: 'not_running',
+    status: 'next',
     notes: '',
     updatedAt: '',
     lastUpdatedBy: ''
@@ -190,24 +190,24 @@ function renderEquipmentRow(press) {
 function equipmentStatus(press, slots) {
   if (press.isLocked) return { label: 'Locked', className: 'blocked' };
   if (slots.some((slot) => slot.status === 'blocked')) return { label: 'On Hold', className: 'blocked' };
-  if (slots.some((slot) => slot.status === 'ready_for_changeover')) return { label: 'READY FOR CHANGEOVER', className: 'ready_for_changeover' };
-  if (slots.some((slot) => slot.status === 'change_in_progress')) return { label: 'In Progress', className: 'change_in_progress' };
-  if (slots.some((slot) => slot.status === 'running')) return { label: 'Running', className: 'running' };
-  if (slots.some((slot) => slot.partNumber)) return { label: 'Planned', className: 'not_running' };
+  if (slots.some((slot, index) => normalizedSlotStatus(slot.status, index, Boolean(slot.partNumber)) === 'ready')) {
+    return { label: 'READY FOR CHANGEOVER', className: 'ready' };
+  }
+  if (slots.some((slot) => slot.partNumber)) return { label: 'Current / Next', className: 'current' };
   return { label: 'No Setups', className: 'no_setup' };
 }
 
 function renderDisplaySlot(slot, index) {
   const empty = !slot.partNumber;
-  const statusClass = empty ? 'no_setup' : slot.status;
-  const isReady = slot.status === 'ready_for_changeover';
+  const statusClass = empty ? 'no_setup' : normalizedSlotStatus(slot.status, index, true);
+  const isReady = statusClass === 'ready';
 
   return `
     <div class="display-slot-card ${empty ? 'empty' : ''} ${isReady ? 'ready-slot' : ''}">
       ${isReady ? `<div class="display-ready-banner">READY FOR CHANGEOVER</div>` : ''}
       <div class="display-slot-topline">
         <strong>Slot ${index + 1}</strong>
-        <span class="status-pill ${statusClass}">${empty ? 'No Setup' : statusLabel(slot.status)}</span>
+        <span class="status-pill ${statusClass}">${empty ? 'No Setup' : statusLabel(statusClass)}</span>
       </div>
       <div class="display-slot-main">
         <span>Part</span>

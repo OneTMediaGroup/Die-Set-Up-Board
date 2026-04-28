@@ -1,5 +1,6 @@
 import { watchPressesFromFirestore } from './firestore-presses.js';
 import { activeSetupCount, areaLabel, equipmentLabel, getSlotsArray } from './supervisor-helpers.js';
+import { normalizedSlotStatus } from './utils.js';
 
 let root = null;
 let presses = [];
@@ -59,7 +60,7 @@ function render(livePresses) {
             ${areaKeys.length ? areaKeys.map((area) => {
               const areaPresses = grouped[area];
               const active = areaPresses.flatMap((press) => getSlotsArray(press)).filter((slot) => slot.partNumber).length;
-              const ready = areaPresses.flatMap((press) => getSlotsArray(press)).filter((slot) => slot.status === 'ready_for_changeover').length;
+              const ready = areaPresses.flatMap((press) => getSlotsArray(press)).filter((slot, index) => normalizedSlotStatus(slot.status, index, Boolean(slot.partNumber)) === 'ready').length;
               const locked = areaPresses.filter((press) => press.isLocked).length;
 
               return `
@@ -87,7 +88,7 @@ function render(livePresses) {
           ${grouped[area].map((press) => {
             const slots = getSlotsArray(press);
             const active = slots.filter((slot) => slot.partNumber).length;
-            const ready = slots.filter((slot) => slot.status === 'ready_for_changeover').length;
+            const ready = slots.filter((slot, index) => normalizedSlotStatus(slot.status, index, Boolean(slot.partNumber)) === 'ready').length;
             return `
               <div class="queue-card" style="border-left:6px solid ${press.areaColor || '#3b82f6'};">
                 <strong>${equipmentLabel(press)}</strong>
