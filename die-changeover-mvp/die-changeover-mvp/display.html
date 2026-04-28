@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Display Board</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+
+<body class="display-board-body">
+  <div class="display-board-shell">
+    <header class="display-board-header">
+      <div class="display-brand-wrap">
+        <div class="display-brand">MAGNA</div>
+        <div>
+          <h1>Display Board</h1>
+          <p>Live changeover view · read only</p>
+        </div>
+      </div>
+
+      <div class="display-controls">
+        <label>
+          Area
+          <select id="displayAreaFilter">
+            <option value="all">All Areas</option>
+          </select>
+        </label>
+
+        <label>
+          Auto Scroll
+          <select id="displayAutoScroll">
+            <option value="on">On</option>
+            <option value="off">Off</option>
+          </select>
+        </label>
+
+        <div class="display-sync-card">
+          <span>Last Sync</span>
+          <strong id="displayLastSync">--</strong>
+        </div>
+      </div>
+    </header>
+
+    <main id="displayScrollArea" class="display-board-scroll-area">
+      <section id="displayBoardContent" class="display-board-content">
+        <div class="display-empty-state">Loading display board...</div>
+      </section>
+    </main>
+  </div>
+
+  <script type="module" src="js/display-board.js"></script>
+</body>
+</html>
