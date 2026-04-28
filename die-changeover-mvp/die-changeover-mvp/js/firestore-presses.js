@@ -10,13 +10,10 @@ export async function fetchPressesFromFirestore() {
   const presses = [];
 
   snapshot.forEach((doc) => {
-    presses.push({
-      id: doc.id,
-      ...doc.data()
-    });
+    presses.push(doc.data());
   });
 
-  presses.sort((a, b) => Number(a.pressNumber || 0) - Number(b.pressNumber || 0));
+  presses.sort((a, b) => a.pressNumber - b.pressNumber);
 
   return presses;
 }
@@ -26,13 +23,10 @@ export function watchPressesFromFirestore(callback) {
     const presses = [];
 
     snapshot.forEach((doc) => {
-      presses.push({
-        id: doc.id,
-        ...doc.data()
-      });
+      presses.push(doc.data());
     });
 
-    presses.sort((a, b) => Number(a.pressNumber || 0) - Number(b.pressNumber || 0));
+    presses.sort((a, b) => a.pressNumber - b.pressNumber);
 
     callback(presses);
   });
