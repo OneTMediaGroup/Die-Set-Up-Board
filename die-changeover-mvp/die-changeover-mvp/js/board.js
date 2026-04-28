@@ -7,6 +7,9 @@ import { fetchUsersFromFirestore } from './firestore-users.js';
 import { getStoredSessionUser, setStoredSessionUser } from './session-user.js';
 import { mountUserSwitcher } from './user-switcher.js';
 
+let pendingComplete = null;
+let dieSetters = [];
+
 initStore();
 
 const pressGrid = document.getElementById('pressGrid');
@@ -33,6 +36,21 @@ mountUserSwitcher({
   labelId: 'currentUserBoard',
   allowedRoles: ['dieSetter', 'admin', 'supervisor']
 });
+
+async function loadDieSetters() {
+  const snapshot = await getDocs(collection(db, 'users'));
+  dieSetters = snapshot.docs
+    .map(d => ({ id: d.id, ...d.data() }))
+    .filter(u => u.role === 'dieSetter' && u.status === 'active');
+
+  const select = document.getElementById('loginUser');
+  select.innerHTML = dieSetters.map(u =>
+    `<option value="${u.id}">${u.name}</option>`
+  ).join('');
+}
+
+
+
 
 async function bootstrapSession() {
   const storedUser = getStoredSessionUser();
