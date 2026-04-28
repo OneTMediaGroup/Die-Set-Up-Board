@@ -7,9 +7,6 @@ import { fetchUsersFromFirestore } from './firestore-users.js';
 import { getStoredSessionUser, setStoredSessionUser } from './session-user.js';
 import { mountUserSwitcher } from './user-switcher.js';
 
-let pendingComplete = null;
-let dieSetters = [];
-
 initStore();
 
 const pressGrid = document.getElementById('pressGrid');
@@ -23,12 +20,17 @@ const dialogNotes = document.getElementById('dialogNotes');
 
 let selected = null;
 let presses = [];
+let dieSetters = [];
+let pendingComplete = null;
 let unsubscribePresses = null;
 let isSubmitting = false;
 let dialogOpenedAt = null;
 
 bootstrapSession();
+ensureLoginModal();
+wireLoginModal();
 wireDialog();
+loadDieSetters();
 startPressWatcher();
 
 mountUserSwitcher({
@@ -38,19 +40,188 @@ mountUserSwitcher({
 });
 
 async function loadDieSetters() {
-  const snapshot = await getDocs(collection(db, 'users'));
-  dieSetters = snapshot.docs
-    .map(d => ({ id: d.id, ...d.data() }))
-    .filter(u => u.role === 'dieSetter' && u.status === 'active');
+  try {
+    const users = await fetchUsersFromFirestore();
 
-  const select = document.getElementById('loginUser');
-  select.innerHTML = dieSetters.map(u =>
-    `<option value="${u.id}">${u.name}</option>`
-  ).join('');
+    dieSetters = users.filter((user) => {
+      const active = user.status === 'active' || user.isActive === true;
+      return user.role === 'dieSetter' && active && user.pin;
+    });
+
+    renderDieSetterOptions();
+  } catch (error) {
+    console.error('❌ Failed to load die setters:', error);
+    dieSetters = [];
+    renderDieSetterOptions();
+  }
 }
 
+function renderDieSetterOptions() {
+  const select = document.getElementById('dieSetterLoginUser');
+  if (!select) return;
 
+  if (!dieSetters.length) {
+    select.innerHTML = `<option value="">No active die setters found</option>`;
+    return;
+  }
 
+  select.innerHTML = dieSetters
+    .map((user) => `<option value="${user.id}">${user.name}</option>`)
+    .join('');
+}
+
+function ensureLoginModal() {
+  if (document.getElementById('dieSetterLoginModal')) return;
+
+  document.body.insertAdjacentHTML('beforeend', `
+    <div id="dieSetterLoginModal" class="modal hidden">
+      <div class="modal-content">
+        <h3>Die Setter Login</h3>
+        <p class="muted" style="margin-bottom:14px;">Confirm who completed this changeover.</p>
+
+        <label class="muted">Die Setter</label>
+        <select id="dieSetterLoginUser" style="margin-top:6px; width:100%;"></select>
+
+        <label class="muted" style="margin-top:12px; display:block;">PIN</label>
+        <input id="dieSetterLoginPin" type="password" inputmode="numeric" placeholder="Enter PIN" style="margin-top:6px; width:100%;" />
+
+        <div id="dieSetterLoginError" class="error-text" style="display:none;"></div>
+
+        <div class="modal-actions">
+          <button id="dieSetterLoginCancel" class="button">Cancel</button>
+          <button id="dieSetterLoginConfirm" class="button primary">Complete + Shift</button>
+        </div>
+      </div>
+    </div>
+  `);
+}
+
+function wireLoginModal() {
+  const cancelBtn = document.getElementById('dieSetterLoginCancel');
+  const confirmBtn = document.getElementById('dieSetterLoginConfirm');
+  const pinInput = document.getElementById('dieSetterLoginPin');
+
+  if (cancelBtn) {
+    cancelBtn.addEventListener('click', closeDieSetterLogin);
+  }
+
+  if (confirmBtn) {
+    confirmBtn.addEventListener('click', confirmDieSetterLogin);
+  }
+
+  if (pinInput) {
+    pinInput.addEventListener('keydown', async (event) => {
+      if (event.key === 'Enter') {
+        await confirmDieSetterLogin();
+      }
+    });
+  }
+}
+
+function openDieSetterLogin(pressId, slotIndex) {
+  const press = presses.find((item) => item.id === pressId);
+  if (!press) return;
+
+  const slots = getSlotsArray(press);
+  const slot = slots[slotIndex];
+
+  if (!slot || !slot.partNumber) return;
+
+  pendingComplete = {
+    pressId,
+    slotIndex,
+    pressName: press.equipmentName || `Press ${press.pressNumber}`,
+    partNumber: slot.partNumber,
+    expectedUpdatedAt: slot.updatedAt || null
+  };
+
+  const modal = document.getElementById('dieSetterLoginModal');
+  const pinInput = document.getElementById('dieSetterLoginPin');
+  const error = document.getElementById('dieSetterLoginError');
+
+  if (pinInput) pinInput.value = '';
+  if (error) {
+    error.textContent = '';
+    error.style.display = 'none';
+  }
+
+  renderDieSetterOptions();
+
+  if (modal) {
+    modal.classList.remove('hidden');
+  }
+
+  setTimeout(() => pinInput?.focus(), 100);
+}
+
+function closeDieSetterLogin() {
+  const modal = document.getElementById('dieSetterLoginModal');
+  if (modal) modal.classList.add('hidden');
+  pendingComplete = null;
+}
+
+function showLoginError(message) {
+  const error = document.getElementById('dieSetterLoginError');
+  if (!error) return;
+
+  error.textContent = message;
+  error.style.display = 'block';
+}
+
+async function confirmDieSetterLogin() {
+  if (!pendingComplete) return;
+
+  const userSelect = document.getElementById('dieSetterLoginUser');
+  const pinInput = document.getElementById('dieSetterLoginPin');
+  const confirmBtn = document.getElementById('dieSetterLoginConfirm');
+
+  const userId = userSelect?.value || '';
+  const pin = pinInput?.value.trim() || '';
+
+  const user = dieSetters.find((item) => item.id === userId);
+
+  if (!user) {
+    showLoginError('Select a die setter.');
+    return;
+  }
+
+  if (!pin || String(user.pin) !== pin) {
+    showLoginError('Invalid PIN.');
+    pinInput?.focus();
+    return;
+  }
+
+  try {
+    if (confirmBtn) {
+      confirmBtn.disabled = true;
+      confirmBtn.textContent = 'Completing...';
+    }
+
+    await completeAndShiftSetupInFirestore({
+      pressId: pendingComplete.pressId,
+      slotIndex: pendingComplete.slotIndex,
+      userName: user.name,
+      setup: {
+        expectedUpdatedAt: pendingComplete.expectedUpdatedAt
+      }
+    });
+
+    closeDieSetterLogin();
+  } catch (error) {
+    if (error?.code === 'slot-conflict') {
+      showLoginError(`This slot was updated by ${error.lastUpdatedBy || 'another user'}. Refresh and try again.`);
+      return;
+    }
+
+    console.error('❌ Complete + Shift failed:', error);
+    showLoginError('Complete + Shift failed. Try again.');
+  } finally {
+    if (confirmBtn) {
+      confirmBtn.disabled = false;
+      confirmBtn.textContent = 'Complete + Shift';
+    }
+  }
+}
 
 async function bootstrapSession() {
   const storedUser = getStoredSessionUser();
@@ -82,10 +253,6 @@ async function bootstrapSession() {
 }
 
 function getActionUserName() {
-  const session = getSession();
-  if (session?.name && (isDieSetter() || isAdmin())) {
-    return session.name;
-  }
   return 'Operator Station';
 }
 
@@ -171,9 +338,10 @@ function startPressWatcher() {
       ...press,
       isLocked: Boolean(press.isLocked)
     }));
+
     renderBoard();
 
-    if (setupDialog.open && selected) {
+    if (setupDialog?.open && selected) {
       refreshOpenDialog();
     }
   });
@@ -192,9 +360,7 @@ function renderBoard() {
   const grouped = {};
 
   visiblePresses.forEach((press) => {
-    const areaLabel = press.areaId && press.areaName ? press.areaName : 'Unassigned';
     const key = press.areaId && press.areaName ? press.areaId : 'unassigned';
-
     if (!grouped[key]) grouped[key] = [];
     grouped[key].push(press);
   });
@@ -233,7 +399,7 @@ function renderBoard() {
               <div class="press-row-header">
                 <div>
                   <h3>${press.equipmentName || `Press ${press.pressNumber}`}</h3>
-                  <div class="muted">${press.area || 'No work cell'} · Shift ${press.shift}${press.isLocked ? ` · Locked by ${press.lockedBy || 'Admin'}` : ''}</div>
+                  <div class="muted">${press.areaName || press.area || 'No work cell'} · Shift ${press.shift}${press.isLocked ? ` · Locked by ${press.lockedBy || 'Admin'}` : ''}</div>
                 </div>
                 <div class="muted">${slots.filter((slot) => slot.partNumber).length} active setups</div>
               </div>
@@ -251,10 +417,10 @@ function renderBoard() {
     button.addEventListener('click', () => openSetup(button.dataset.pressId, Number(button.dataset.slotIndex)));
   });
 
-  pressGrid.querySelectorAll('[data-quick-complete]').forEach((button) => {
-    button.addEventListener('click', async (event) => {
+  pressGrid.querySelectorAll('[data-complete-shift]').forEach((button) => {
+    button.addEventListener('click', (event) => {
       event.stopPropagation();
-      await handleQuickComplete(button.dataset.pressId, Number(button.dataset.slotIndex));
+      openDieSetterLogin(button.dataset.pressId, Number(button.dataset.slotIndex));
     });
   });
 
@@ -270,9 +436,9 @@ function renderSlot(press, slot, slotIndex) {
   const areaColor = press.areaColor || '#444';
   const empty = !slot.partNumber;
   const displayStatus = empty ? 'no_setup' : normalizedSlotStatus(slot.status, slotIndex, true);
-  const canAct = (isDieSetter() || isAdmin()) && !press.isLocked;
+  const canAct = !press.isLocked;
   const canMarkReady = !press.isLocked && !empty && slotIndex === 0 && displayStatus !== 'ready';
-  const showCompleteShift = canAct && !empty && slotIndex === 0;
+  const showCompleteShift = !press.isLocked && !empty && slotIndex === 0 && displayStatus === 'ready';
   const emptyClass = empty ? ' empty-slot-card' : '';
   const readyClass = displayStatus === 'ready' ? ' ready-slot' : '';
   const lockedBadge = press.isLocked ? `<div class="muted" style="margin-bottom:8px;">🔒 Press locked</div>` : '';
@@ -301,7 +467,7 @@ function renderSlot(press, slot, slotIndex) {
         }
         ${
           showCompleteShift
-            ? `<button class="button success full" data-quick-complete data-press-id="${press.id}" data-slot-index="${slotIndex}">Complete + Shift</button>`
+            ? `<button class="button success full" data-complete-shift data-press-id="${press.id}" data-slot-index="${slotIndex}">Complete + Shift</button>`
             : ''
         }
         ${
@@ -363,48 +529,6 @@ async function handleReadyForChangeover(pressId, slotIndex) {
   }
 }
 
-async function handleQuickComplete(pressId, slotIndex) {
-  const session = getSession() || { name: 'Demo User' };
-  const press = presses.find((item) => item.id === pressId);
-  if (!press || press.isLocked) {
-    alert('This press is locked by Admin.');
-    return;
-  }
-
-  const slots = getSlotsArray(press);
-  const slot = slots[slotIndex];
-  if (!slot || !slot.partNumber) return;
-  if (normalizedSlotStatus(slot.status, slotIndex, true) === 'no_setup') return;
-
-  const confirmed = window.confirm(
-    `Mark ${press.equipmentName || `Press ${press.pressNumber}`} Slot ${slotIndex + 1} as Complete?\n\nPart: ${slot.partNumber}`
-  );
-
-  if (!confirmed) return;
-
-  try {
-    await completeAndShiftSetupInFirestore({
-      pressId,
-      slotIndex,
-      userName: session.name,
-      setup: {
-        notes: slot.notes || '',
-        expectedUpdatedAt: slot.updatedAt || null
-      }
-    });
-  } catch (error) {
-    if (error?.code === 'slot-conflict') {
-      alert(
-        `This slot was updated by ${error.lastUpdatedBy || 'another user'} before Quick Complete.\n\nPlease review the latest data and try again.`
-      );
-      return;
-    }
-
-    console.error('❌ Quick complete failed:', error);
-    alert('Quick Complete failed. Please try again.');
-  }
-}
-
 function openSetup(pressId, slotIndex) {
   const press = presses.find((item) => item.id === pressId);
   if (!press) return;
@@ -443,10 +567,10 @@ function fillDialog(press, slot, slotIndex) {
   const empty = !slot.partNumber;
 
   document.getElementById('dialogTitle').textContent = `${press.equipmentName || `Press ${press.pressNumber}`} · Slot ${slotIndex + 1}`;
-  document.getElementById('dialogSubtitle').textContent = `${press.area} · Shift ${press.shift}${press.isLocked ? ' · LOCKED' : ''}`;
+  document.getElementById('dialogSubtitle').textContent = `${press.areaName || press.area || 'No work cell'} · Shift ${press.shift}${press.isLocked ? ' · LOCKED' : ''}`;
   document.getElementById('dialogPart').textContent = slot.partNumber || '—';
   document.getElementById('dialogQty').textContent = slot.partNumber ? String(slot.qtyRemaining) : '—';
-  document.getElementById('dialogStatus').textContent = slot.partNumber ? statusLabel(slot.status) : 'No setup';
+  document.getElementById('dialogStatus').textContent = slot.partNumber ? statusLabel(normalizedSlotStatus(slot.status, slotIndex, true)) : 'No setup';
   document.getElementById('dialogUpdated').textContent = formatDateTime(slot.updatedAt);
   dialogNotes.value = slot.notes || '';
 
@@ -585,16 +709,12 @@ async function handleDialogAction(action) {
     setDialogBusyState(true);
 
     if (action === 'change_complete') {
-      await completeAndShiftSetupInFirestore({
-        pressId: selected.pressId,
-        slotIndex: selected.slotIndex,
-        userName: session.name,
-        setup: {
-          notes: dialogNotes.value.trim(),
-          expectedUpdatedAt: slot.updatedAt || null
-        }
-      });
-    } else if (action === 'clear') {
+      openDieSetterLogin(selected.pressId, selected.slotIndex);
+      setupDialog.close();
+      return;
+    }
+
+    if (action === 'clear') {
       await updateSetupInFirestore({
         pressId: selected.pressId,
         slotIndex: selected.slotIndex,
@@ -612,7 +732,7 @@ async function handleDialogAction(action) {
       await updateSetupInFirestore({
         pressId: selected.pressId,
         slotIndex: selected.slotIndex,
-        userName: session.name,
+        userName: action === 'ready' ? getActionUserName() : session.name,
         setup: {
           partNumber: slot.partNumber,
           qtyRemaining: slot.qtyRemaining,
@@ -640,6 +760,7 @@ async function handleDialogAction(action) {
     setDialogBusyState(false);
   }
 }
+
 function syncAreaFilterOptions() {
   if (!areaFilterBoard) return;
 
@@ -663,7 +784,6 @@ function syncAreaFilterOptions() {
     areaFilterBoard.value = 'all';
   }
 }
-
 
 function filteredPresses() {
   return presses.filter((press) => {
