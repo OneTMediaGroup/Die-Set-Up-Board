@@ -85,6 +85,95 @@ function makeConflictError({ pressId, slotIndex, lastUpdatedBy, updatedAt }) {
   return error;
 }
 
+
+function makeEmptySlot(now, userName) {
+  return {
+    partNumber: '',
+    qtyRemaining: 0,
+    status: 'not_running',
+    notes: '',
+    updatedAt: now,
+    lastUpdatedBy: userName
+  };
+}
+
+function normalizeSlots(rawSlots, now, userName) {
+  const slots = Array.isArray(rawSlots) ? [...rawSlots] : Object.values(rawSlots || {});
+
+  while (slots.length < 4) {
+    slots.push(makeEmptySlot(now, userName));
+  }
+
+  return slots.slice(0, 4);
+}
+
+export async function completeAndShiftSetupInFirestore({ pressId, slotIndex, setup, userName }) {
+  const ref = doc(db, 'presses', pressId);
+  const now = new Date().toISOString();
+  const expectedUpdatedAt = setup.expectedUpdatedAt || null;
+
+  let completedSlot = null;
+  let equipmentLabel = pressId.toUpperCase();
+
+  await runTransaction(db, async (transaction) => {
+    const snap = await transaction.get(ref);
+    if (!snap.exists()) {
+      throw new Error(`Press ${pressId} not found`);
+    }
+
+    const pressData = snap.data();
+    equipmentLabel = pressData.equipmentName || `Press ${pressData.pressNumber || pressId}`;
+
+    const slots = normalizeSlots(pressData.slots || [], now, userName);
+    const currentSlot = slots[slotIndex] || {};
+
+    if (!currentSlot.partNumber) {
+      throw new Error('Selected slot has no active setup.');
+    }
+
+    const currentUpdatedAt = currentSlot.updatedAt || null;
+    const currentLastUpdatedBy = currentSlot.lastUpdatedBy || pressData.lastUpdatedBy || null;
+
+    if (expectedUpdatedAt && currentUpdatedAt && expectedUpdatedAt !== currentUpdatedAt) {
+      throw makeConflictError({
+        pressId,
+        slotIndex,
+        lastUpdatedBy: currentLastUpdatedBy,
+        updatedAt: currentUpdatedAt
+      });
+    }
+
+    completedSlot = {
+      ...currentSlot,
+      status: 'change_complete',
+      notes: setup.notes ?? currentSlot.notes ?? '',
+      updatedAt: now,
+      lastUpdatedBy: userName
+    };
+
+    const nextSlots = [
+      ...slots.slice(0, slotIndex),
+      ...slots.slice(slotIndex + 1),
+      makeEmptySlot(now, userName)
+    ].slice(0, 4);
+
+    transaction.update(ref, {
+      slots: nextSlots,
+      updatedAt: now,
+      lastUpdatedBy: userName
+    });
+  });
+
+  await addLogToFirestore({
+    user: userName,
+    message: `Completed ${equipmentLabel} Slot ${slotIndex + 1} · ${completedSlot?.partNumber || '—'} · shifted queue forward`
+  });
+
+  console.log(`✅ Completed and shifted ${pressId} slot ${slotIndex}`);
+
+  return { ok: true, shifted: true };
+}
+
 export async function updateSetupInFirestore({ pressId, slotIndex, setup, userName }) {
   const ref = doc(db, 'presses', pressId);
   const now = new Date().toISOString();

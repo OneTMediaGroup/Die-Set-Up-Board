@@ -2,7 +2,7 @@ import { isDieSetter, isAdmin } from './roles.js';
 import { initStore, getSession, setSession } from './store.js';
 import { formatTime, formatDateTime, statusLabel } from './utils.js';
 import { watchPressesFromFirestore } from './firestore-presses.js';
-import { updateSetupInFirestore } from './firestore-write.js';
+import { updateSetupInFirestore, completeAndShiftSetupInFirestore } from './firestore-write.js';
 import { fetchUsersFromFirestore } from './firestore-users.js';
 import { getStoredSessionUser, setStoredSessionUser } from './session-user.js';
 import { mountUserSwitcher } from './user-switcher.js';
@@ -259,7 +259,7 @@ function renderSlot(press, slot, slotIndex) {
         }
         ${
           showQuickComplete
-            ? `<button class="button full" data-quick-complete data-press-id="${press.id}" data-slot-index="${slotIndex}">Quick Complete</button>`
+            ? `<button class="button full" data-quick-complete data-press-id="${press.id}" data-slot-index="${slotIndex}">Complete + Shift</button>`
             : ''
         }
         ${
@@ -341,16 +341,12 @@ async function handleQuickComplete(pressId, slotIndex) {
   if (!confirmed) return;
 
   try {
-    await updateSetupInFirestore({
+    await completeAndShiftSetupInFirestore({
       pressId,
       slotIndex,
       userName: session.name,
       setup: {
-        partNumber: slot.partNumber,
-        qtyRemaining: slot.qtyRemaining,
-        status: 'change_complete',
         notes: slot.notes || '',
-        previousSetup: slot,
         expectedUpdatedAt: slot.updatedAt || null
       }
     });
@@ -528,7 +524,7 @@ async function handleDialogAction(action) {
   const actionLabels = {
     running: 'mark this setup as Running',
     change_in_progress: 'mark this setup as In Progress',
-    change_complete: 'mark this setup as Complete',
+    change_complete: 'complete this setup and shift the queue forward',
     blocked: 'flag this setup for Maintenance',
     save_notes: 'save these notes',
     clear: 'clear this setup'
@@ -547,7 +543,17 @@ async function handleDialogAction(action) {
     isSubmitting = true;
     setDialogBusyState(true);
 
-    if (action === 'clear') {
+    if (action === 'change_complete') {
+      await completeAndShiftSetupInFirestore({
+        pressId: selected.pressId,
+        slotIndex: selected.slotIndex,
+        userName: session.name,
+        setup: {
+          notes: dialogNotes.value.trim(),
+          expectedUpdatedAt: slot.updatedAt || null
+        }
+      });
+    } else if (action === 'clear') {
       await updateSetupInFirestore({
         pressId: selected.pressId,
         slotIndex: selected.slotIndex,
