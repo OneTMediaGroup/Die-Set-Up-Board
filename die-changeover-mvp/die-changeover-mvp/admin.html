@@ -6,53 +6,50 @@
   <title>Admin / Maintenance</title>
   <link rel="stylesheet" href="css/styles.css" />
 </head>
+
 <body>
-  <div class="app-shell">
-    <aside class="sidebar dark">
-      <div class="brand-logo large">MAGNA</div>
+  <div class="admin-app-shell">
 
-      <nav>
-        <a class="nav-link" href="board.html">Die Setter Board</a>
-        <a class="nav-link" href="supervisor.html">Supervisor</a>
-        <a class="nav-link active" href="admin.html">Admin / Maintenance</a>
-        <a class="nav-link" href="index.html">Home</a>
-      </nav>
+    <aside class="admin-sidebar">
+      <div class="admin-brand">MAGNA</div>
 
-      <div class="sidebar-footer">
-        <div id="currentAdminUser" class="user-pill">Loading...</div>
-        <select id="userSwitcher" class="select" style="margin-top:10px;">
+      <div class="admin-side-section">
+        <div class="admin-side-label">Admin Tools</div>
+        <button class="admin-tool-link active" data-admin-tool="equipment">Equipment</button>
+        <button class="admin-tool-link" data-admin-tool="areas">Areas</button>
+        <button class="admin-tool-link" data-admin-tool="users">Users</button>
+        <button class="admin-tool-link" data-admin-tool="activity">Activity Logs</button>
+        <button class="admin-tool-link" data-admin-tool="system">System Controls</button>
+      </div>
+
+      <div class="admin-side-section admin-screen-links">
+        <div class="admin-side-label">Plant Screens</div>
+        <a class="admin-screen-link" href="board.html">Die Setter Board</a>
+        <a class="admin-screen-link" href="supervisor.html">Supervisor</a>
+        <a class="admin-screen-link" href="index.html">Home</a>
+      </div>
+
+      <div class="admin-sidebar-footer">
+        <div id="currentAdminUser" class="admin-user-pill">Loading...</div>
+        <select id="userSwitcher" class="admin-user-select">
           <option>Loading users...</option>
         </select>
       </div>
     </aside>
 
-    <main class="main-content">
-      <header class="topbar">
+    <main class="admin-main">
+      <header class="admin-page-header">
         <div>
           <h1>Admin / Maintenance</h1>
           <p class="muted">System control, users, equipment, areas, and operations</p>
         </div>
       </header>
 
-      <section class="grid-2" style="grid-template-columns:260px minmax(0,1fr); align-items:start;">
-        <aside class="card">
-          <div class="section-header">
-            <h2>Admin Tools</h2>
-          </div>
-          <div style="display:grid; gap:10px; margin-top:14px;">
-            <button class="button primary full" data-admin-tool="equipment">Equipment</button>
-            <button class="button full" data-admin-tool="areas">Areas</button>
-            <button class="button full" data-admin-tool="users">Users</button>
-            <button class="button full" data-admin-tool="activity">Activity Logs</button>
-            <button class="button full" data-admin-tool="system">System Controls</button>
-          </div>
-        </aside>
-
-        <section id="adminContent" class="card">
-          <div class="muted">Loading admin tools...</div>
-        </section>
+      <section id="adminContent" class="admin-workspace">
+        <div class="muted">Loading admin tools...</div>
       </section>
     </main>
+
   </div>
 
   <script type="module" src="js/admin.js"></script>
