@@ -143,8 +143,23 @@ function renderFromState() {
 
   if (dailyQueue) {
     dailyQueue.innerHTML = presses.length
-      ? presses.map((press) => renderPressQueueRow(press, selectedPressId, selectedSlotIndex)).join('')
+      ? presses.map((press) => renderPressQueueRow(press, {
+          selectedPressId,
+          selectedSlotIndex,
+          expanded: press.id === selectedPressId,
+          showAddSetup: false,
+          showMenu: false
+        })).join('')
       : `<div class="muted">No equipment loaded yet.</div>`;
+
+    dailyQueue.querySelectorAll('[data-toggle-press]').forEach((row) => {
+      row.addEventListener('click', () => {
+        selectedPressId = row.dataset.togglePress;
+        selectedSlotIndex = '0';
+        renderFromState();
+        autofillForm();
+      });
+    });
 
     dailyQueue.querySelectorAll('[data-pick-press][data-pick-slot]').forEach((card) => {
       card.addEventListener('click', () => {

@@ -17,6 +17,22 @@ export function areaLabel(press) {
   return press.areaName || press.area || 'Unassigned';
 }
 
+export function equipmentStatus(press) {
+  const slots = getSlotsArray(press);
+  const active = slots.filter((slot) => slot.partNumber).length;
+  const ready = slots.filter((slot) => slot.status === 'ready_for_changeover').length;
+  const blocked = slots.filter((slot) => slot.status === 'blocked').length;
+  const progress = slots.filter((slot) => slot.status === 'change_in_progress').length;
+  const complete = slots.filter((slot) => slot.status === 'change_complete').length;
+
+  if (press.isLocked) return { label: 'Locked', className: 'blocked', active, ready, blocked, progress, complete };
+  if (blocked > 0) return { label: 'On Hold', className: 'blocked', active, ready, blocked, progress, complete };
+  if (progress > 0) return { label: 'In Progress', className: 'change_in_progress', active, ready, blocked, progress, complete };
+  if (ready > 0) return { label: 'Ready', className: 'change_complete', active, ready, blocked, progress, complete };
+  if (active > 0) return { label: 'Planned', className: 'not_running', active, ready, blocked, progress, complete };
+  return { label: 'No Setups', className: 'no_setup', active, ready, blocked, progress, complete };
+}
+
 export function renderSlotCard(press, slot, slotIndex, selected = false) {
   const empty = !slot.partNumber;
   const displayStatus = empty ? 'no_setup' : slot.status;
@@ -46,8 +62,33 @@ export function renderSlotCard(press, slot, slotIndex, selected = false) {
   `;
 }
 
-export function renderPressQueueRow(press, selectedPressId = '', selectedSlotIndex = '') {
+function normalizeQueueOptions(arg1, arg2, arg3) {
+  if (arg1 && typeof arg1 === 'object' && !Array.isArray(arg1)) {
+    return {
+      selectedPressId: arg1.selectedPressId || '',
+      selectedSlotIndex: arg1.selectedSlotIndex || '',
+      expanded: Boolean(arg1.expanded),
+      showAddSetup: Boolean(arg1.showAddSetup),
+      showMenu: Boolean(arg1.showMenu)
+    };
+  }
+
+  return {
+    selectedPressId: arg1 || '',
+    selectedSlotIndex: arg2 || '',
+    expanded: Boolean(arg3),
+    showAddSetup: false,
+    showMenu: false
+  };
+}
+
+export function renderPressQueueRow(press, arg1 = '', arg2 = '', arg3 = false) {
+  const options = normalizeQueueOptions(arg1, arg2, arg3);
   const slots = getSlotsArray(press);
+  const status = equipmentStatus(press);
+  const selectedOnPress = press.id === options.selectedPressId;
+  const chevron = options.expanded ? '⌄' : '›';
+
   const sortedSlots = [...slots].sort((a, b) => {
     const aReady = a.status === 'ready_for_changeover';
     const bReady = b.status === 'ready_for_changeover';
@@ -57,21 +98,27 @@ export function renderPressQueueRow(press, selectedPressId = '', selectedSlotInd
   });
 
   return `
-    <article class="press-row">
-      <div class="press-row-header">
-        <div>
-          <h3>${equipmentLabel(press)}</h3>
-          <div class="muted">${areaLabel(press)} · Shift ${press.shift || '1'}${press.isLocked ? ' · Locked' : ''}</div>
+    <article class="supervisor-equipment-row${options.expanded ? ' expanded' : ''}${selectedOnPress ? ' selected-equipment-row' : ''}">
+      <button class="supervisor-equipment-summary-row" type="button" data-toggle-press="${press.id}">
+        <span class="queue-chevron">${chevron}</span>
+        <span class="queue-equipment-name">${equipmentLabel(press)}</span>
+        <span class="queue-slot-count">${slots.length}</span>
+        <span class="queue-equipment-meta">${areaLabel(press)} · Shift ${press.shift || '1'}${press.isLocked ? ' · Locked' : ''}</span>
+        <span class="status-pill queue-status ${status.className}">${status.label}</span>
+        <span class="queue-active-count">${status.active} active setup${status.active === 1 ? '' : 's'}</span>
+        ${options.showAddSetup ? `<span class="button queue-add-button" data-queue-add="${press.id}">+ Add Setup</span>` : ''}
+        ${options.showMenu ? `<span class="queue-menu">⋮</span>` : ''}
+      </button>
+
+      ${options.expanded ? `
+        <div class="queue-expanded-slots">
+          ${sortedSlots.map((slot) => {
+            const originalIndex = slots.indexOf(slot);
+            const selected = press.id === options.selectedPressId && String(originalIndex) === String(options.selectedSlotIndex);
+            return renderSlotCard(press, slot, originalIndex, selected);
+          }).join('')}
         </div>
-        <div class="muted">${slots.filter((slot) => slot.partNumber).length} active setups</div>
-      </div>
-      <div class="slot-grid">
-        ${sortedSlots.map((slot) => {
-          const originalIndex = slots.indexOf(slot);
-          const selected = press.id === selectedPressId && String(originalIndex) === String(selectedSlotIndex);
-          return renderSlotCard(press, slot, originalIndex, selected);
-        }).join('')}
-      </div>
+      ` : ''}
     </article>
   `;
 }
