@@ -9,6 +9,7 @@ let presses = [];
 let unsubscribePresses = null;
 let selectedPressId = '';
 let selectedSlotIndex = '0';
+let expandedPressId = '';
 
 export async function mountDailySetupTool(container) {
   root = container;
@@ -164,7 +165,7 @@ function renderFromState() {
                 .map((press) => renderPressQueueRow(press, {
                   selectedPressId,
                   selectedSlotIndex,
-                  expanded: press.id === selectedPressId,
+                  expanded: press.id === expandedPressId,
                   showAddSetup: false,
                   showMenu: false
                 }))
@@ -176,8 +177,17 @@ function renderFromState() {
 
     dailyQueue.querySelectorAll('[data-toggle-press]').forEach((row) => {
       row.addEventListener('click', () => {
-        selectedPressId = row.dataset.togglePress;
-        selectedSlotIndex = '0';
+        const pressId = row.dataset.togglePress;
+        if (!pressId) return;
+
+        if (expandedPressId === pressId) {
+          expandedPressId = '';
+        } else {
+          expandedPressId = pressId;
+          selectedPressId = pressId;
+          selectedSlotIndex = '0';
+        }
+
         renderFromState();
         autofillForm();
       });
@@ -187,6 +197,7 @@ function renderFromState() {
       card.addEventListener('click', (event) => {
         event.stopPropagation();
         selectedPressId = card.dataset.pickPress;
+        expandedPressId = card.dataset.pickPress;
         selectedSlotIndex = card.dataset.pickSlot;
         renderFromState();
         autofillForm();

@@ -4,9 +4,29 @@ export function equipmentLabel(press) {
   return press.equipmentName || `Press ${press.pressNumber}`;
 }
 
+function makeEmptySlot() {
+  return {
+    partNumber: '',
+    qtyRemaining: 0,
+    status: 'not_running',
+    notes: '',
+    updatedAt: '',
+    lastUpdatedBy: ''
+  };
+}
+
 export function getSlotsArray(press) {
-  if (Array.isArray(press.slots)) return press.slots;
-  return Object.values(press.slots || {});
+  const rawSlots = Array.isArray(press.slots)
+    ? press.slots
+    : Object.values(press.slots || {});
+
+  const normalized = rawSlots.slice(0, 4).map((slot) => slot || makeEmptySlot());
+
+  while (normalized.length < 4) {
+    normalized.push(makeEmptySlot());
+  }
+
+  return normalized;
 }
 
 export function activeSetupCount(presses) {
