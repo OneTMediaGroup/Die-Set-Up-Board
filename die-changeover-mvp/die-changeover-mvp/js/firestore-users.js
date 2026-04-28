@@ -33,7 +33,6 @@ export async function updateUserInFirestore(userId, updates) {
 
   const payload = {
     ...updates,
-    isActive: updates.status === 'active',
     updatedAt: new Date().toISOString()
   };
 
