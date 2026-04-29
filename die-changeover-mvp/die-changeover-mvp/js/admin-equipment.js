@@ -70,10 +70,10 @@ function render() {
             <thead>
               <tr>
                 <th style="width:45px;">#</th>
-<th>Equipment</th>
-<th style="width:130px;">Area</th>
-<th style="width:70px;">Setups</th>
-<th style="width:210px;">Actions</th>
+                  <th>Equipment</th>
+                   <th style="width:130px;">Area</th>
+                     <th style="width:70px;">Setups</th>
+                    <th style="width:210px;">Actions</th>
               </tr>
             </thead>
             <tbody id="equipmentTableBody">
