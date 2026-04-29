@@ -1,7 +1,5 @@
 import { doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
-import { ref, uploadBytes, getDownloadURL } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js';
-
-import { db, storage } from './firebase-config.js';
+import { db } from './firebase-config.js';
 import { addAdminLog } from './admin-helpers.js';
 
 let root = null;
@@ -26,7 +24,7 @@ async function loadSettings() {
       settings = { ...settings, ...snap.data() };
     }
   } catch (error) {
-    console.error('❌ Failed to load settings:', error);
+    console.error('❌ Failed to load system settings:', error);
   }
 }
 
@@ -41,33 +39,33 @@ function render() {
 
     <div class="admin-card">
       <h2>Branding</h2>
+      <p class="muted">Choose text branding or a logo image for the app header/sidebar.</p>
 
       <div style="display:grid; gap:14px; margin-top:16px;">
-        
         <label>
-          <span>Mode</span>
+          <span>Branding Mode</span>
           <select id="brandingMode">
             <option value="text" ${settings.brandingMode === 'text' ? 'selected' : ''}>Text</option>
-            <option value="logo" ${settings.brandingMode === 'logo' ? 'selected' : ''}>Logo</option>
+            <option value="logo" ${settings.brandingMode === 'logo' ? 'selected' : ''}>Logo Image</option>
           </select>
         </label>
 
         <label>
           <span>Brand Text</span>
-          <input id="brandText" value="${escapeAttr(settings.brandText)}" />
+          <input id="brandText" value="${escapeAttr(settings.brandText || 'MAGNA')}" placeholder="MAGNA" />
         </label>
 
         <label>
-          <span>Upload Logo</span>
-          <input type="file" id="logoUpload" accept="image/*" />
+          <span>Logo Image URL</span>
+          <input id="logoUrl" value="${escapeAttr(settings.logoUrl || '')}" placeholder="https://example.com/logo.png" />
         </label>
 
         <div class="card" style="padding:14px;">
           <strong>Preview</strong>
-          <div id="preview" style="margin-top:10px;"></div>
+          <div id="brandPreview" style="margin-top:12px;"></div>
         </div>
 
-        <button id="saveBtn" class="button primary">Save</button>
+        <button id="saveSystemSettingsBtn" class="button primary">Save Branding</button>
       </div>
     </div>
 
@@ -80,81 +78,51 @@ function render() {
   renderPreview();
 }
 
-/* ---------- EVENTS ---------- */
-
 function wireEvents() {
   root.querySelector('#brandingMode')?.addEventListener('change', renderPreview);
   root.querySelector('#brandText')?.addEventListener('input', renderPreview);
-  root.querySelector('#logoUpload')?.addEventListener('change', handleUpload);
-  root.querySelector('#saveBtn')?.addEventListener('click', saveSettings);
+  root.querySelector('#logoUrl')?.addEventListener('input', renderPreview);
+  root.querySelector('#saveSystemSettingsBtn')?.addEventListener('click', saveSettings);
 }
-
-/* ---------- UPLOAD ---------- */
-
-async function handleUpload(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-
-  try {
-    const storageRef = ref(storage, `branding/logo_${Date.now()}`);
-    await uploadBytes(storageRef, file);
-
-    const url = await getDownloadURL(storageRef);
-    settings.logoUrl = url;
-
-    renderPreview();
-  } catch (error) {
-    console.error('❌ Upload failed:', error);
-    alert('Upload failed');
-  }
-}
-
-/* ---------- PREVIEW ---------- */
 
 function renderPreview() {
-  const mode = root.querySelector('#brandingMode')?.value;
-  const text = root.querySelector('#brandText')?.value || 'MAGNA';
-  const preview = root.querySelector('#preview');
+  const mode = root.querySelector('#brandingMode')?.value || 'text';
+  const text = root.querySelector('#brandText')?.value.trim() || 'MAGNA';
+  const logoUrl = root.querySelector('#logoUrl')?.value.trim() || '';
+  const preview = root.querySelector('#brandPreview');
 
   if (!preview) return;
 
-  if (mode === 'logo' && settings.logoUrl) {
-    preview.innerHTML = `
-      <img src="${settings.logoUrl}" style="max-height:60px;" />
-    `;
+  if (mode === 'logo' && logoUrl) {
+    preview.innerHTML = `<img src="${escapeAttr(logoUrl)}" alt="Brand logo" style="max-height:64px; max-width:220px; object-fit:contain;" />`;
   } else {
-    preview.innerHTML = `
-      <div style="font-size:28px; font-weight:700;">${escapeHtml(text)}</div>
-    `;
+    preview.innerHTML = `<div class="brand-logo large">${escapeHtml(text)}</div>`;
   }
 }
 
-/* ---------- SAVE ---------- */
-
 async function saveSettings() {
-  const brandingMode = root.querySelector('#brandingMode')?.value;
-  const brandText = root.querySelector('#brandText')?.value;
+  const brandingMode = root.querySelector('#brandingMode')?.value || 'text';
+  const brandText = root.querySelector('#brandText')?.value.trim() || 'MAGNA';
+  const logoUrl = root.querySelector('#logoUrl')?.value.trim() || '';
 
   try {
     settings = {
-      ...settings,
       brandingMode,
       brandText,
+      logoUrl,
       updatedAt: new Date().toISOString()
     };
 
     await setDoc(doc(db, 'system', 'settings'), settings, { merge: true });
+    await addAdminLog(`Updated system branding to ${brandingMode}`);
 
-    await addAdminLog(`Updated branding (${brandingMode})`);
-
-    alert('Saved');
+    alert('Branding saved.');
+    render();
   } catch (error) {
-    console.error('❌ Save failed:', error);
-    alert('Save failed');
+    console.error('❌ Failed to save system settings:', error);
+    alert('Save failed.');
   }
 }
-
-/* ---------- HELPERS ---------- */
 
 function escapeHtml(value) {
   return String(value || '')
