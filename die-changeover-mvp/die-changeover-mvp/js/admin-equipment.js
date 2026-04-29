@@ -42,7 +42,7 @@ function render() {
   const filtered = getFilteredPresses();
 
   root.innerHTML = `
-    <div style="max-width:820px; width:100%;">
+    <div>
       <div class="admin-content-header">
         <h2>Equipment</h2>
         <p class="muted">Create, search, edit, reset, and delete equipment.</p>
