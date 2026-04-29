@@ -56,7 +56,7 @@ function render() {
         </div>
       </div>
 
-      <div class="admin-card admin-table-card" style="margin-top:16px;">
+      <div class="admin-card" style="margin-top:16px;">
         <h2>All Equipment</h2>
         <div id="equipmentCountText" class="muted" style="margin-bottom:12px;">
           ${filtered.length} shown · ${presses.length} total
@@ -69,21 +69,8 @@ function render() {
           style="width:100%; margin-bottom:14px;"
         />
 
-        <div class="admin-table-wrap">
-          <table class="admin-table" style="width:100%; table-layout:fixed;">
-            <thead>
-              <tr>
-                <th style="width:45px;">#</th>
-                <th>Equipment</th>
-                <th style="width:130px;">Area</th>
-                <th style="width:70px;">Setups</th>
-                <th style="width:210px;">Actions</th>
-              </tr>
-            </thead>
-            <tbody id="equipmentTableBody">
-              ${renderEquipmentRows(filtered)}
-            </tbody>
-          </table>
+        <div id="equipmentTableBody" style="display:grid; gap:10px;">
+          ${renderEquipmentRows(filtered)}
         </div>
       </div>
 
@@ -110,7 +97,7 @@ function refreshEquipmentTable() {
 
 function renderEquipmentRows(list) {
   if (!list.length) {
-    return `<tr><td colspan="5" class="muted">No equipment found.</td></tr>`;
+    return `<div class="muted">No equipment found.</div>`;
   }
 
   return list.map((press, index) => {
@@ -121,35 +108,38 @@ function renderEquipmentRows(list) {
 
     if (isEditing) {
       return `
-        <tr>
-          <td>${index + 1}</td>
-          <td colspan="4">
-            <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-              <input data-edit-name="${press.id}" value="${equipmentLabel(press)}" style="max-width:320px;" />
+        <div class="card" style="padding:14px;">
+          <div style="display:grid; gap:10px;">
+            <input data-edit-name="${press.id}" value="${equipmentLabel(press)}" />
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
               <button class="button primary" data-save-equipment="${press.id}">Save</button>
               <button class="button" data-cancel-edit>Cancel</button>
               <button class="button danger-outline" data-reset-equipment="${press.id}">Reset</button>
               <button class="button" data-delete-equipment="${press.id}">Delete</button>
             </div>
-          </td>
-        </tr>
+          </div>
+        </div>
       `;
     }
 
     return `
-      <tr>
-        <td>${index + 1}</td>
-        <td><strong>${equipmentLabel(press)}</strong></td>
-        <td><span class="admin-area-pill" style="background:${areaColor}22; color:${areaColor};">${areaLabel}</span></td>
-        <td>${activeCount}</td>
-        <td>
+      <div class="card" style="padding:14px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
+          <div>
+            <strong>${index + 1}. ${equipmentLabel(press)}</strong>
+            <div class="muted">
+              Area: <span style="color:${areaColor}; font-weight:700;">${areaLabel}</span>
+              · ${activeCount} setup${activeCount === 1 ? '' : 's'}
+            </div>
+          </div>
+
           <div style="display:flex; gap:8px; flex-wrap:wrap;">
             <button class="button" data-edit-equipment="${press.id}">Edit</button>
             <button class="button danger-outline" data-reset-equipment="${press.id}">Reset</button>
             <button class="button" data-delete-equipment="${press.id}">Delete</button>
           </div>
-        </td>
-      </tr>
+        </div>
+      </div>
     `;
   }).join('');
 }
