@@ -135,6 +135,8 @@ function wireEvents() {
 
       settings.logoUrl = url;
       root.querySelector('#brandingMode').value = 'logo';
+      root.querySelector('#textModeBlock').style.display = 'none';
+      root.querySelector('#logoModeBlock').style.display = '';
 
       const input = root.querySelector('#logoUrl');
       if (input) input.value = url;
