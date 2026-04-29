@@ -111,36 +111,35 @@ async function uploadToCloudinary(file) {
 
 
 
-function wireEvents() {
+function function wireEvents() {
   root.querySelector('#brandingMode')?.addEventListener('change', () => {
     const mode = root.querySelector('#brandingMode')?.value || 'text';
 
     root.querySelector('#textModeBlock').style.display = mode === 'text' ? '' : 'none';
     root.querySelector('#logoModeBlock').style.display = mode === 'logo' ? '' : 'none';
-root.querySelector('#logoFileInput')?.addEventListener('change', async (e) => {
-  const file = e.target.files?.[0];
-  if (!file) return;
-
-  try {
-    const url = await uploadToCloudinary(file);
-
-    settings.logoUrl = url;
-
-    const input = root.querySelector('#logoUrl');
-    if (input) input.value = url;
 
     renderPreview();
+  });
 
-    alert('Logo uploaded successfully.');
-  } catch (error) {
-    console.error('❌ Logo upload failed:', error);
-    alert('Logo upload failed.');
-  }
-});
+  root.querySelector('#logoFileInput')?.addEventListener('change', async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
+    try {
+      const url = await uploadToCloudinary(file);
 
+      settings.logoUrl = url;
 
-    renderPreview();
+      const input = root.querySelector('#logoUrl');
+      if (input) input.value = url;
+
+      renderPreview();
+
+      alert('Logo uploaded successfully.');
+    } catch (error) {
+      console.error('❌ Logo upload failed:', error);
+      alert('Logo upload failed.');
+    }
   });
 
   root.querySelector('#brandText')?.addEventListener('input', renderPreview);
