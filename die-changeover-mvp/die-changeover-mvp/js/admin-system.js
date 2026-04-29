@@ -124,23 +124,19 @@ root.querySelector('#logoFileInput')?.addEventListener('change', async (e) => {
   try {
     const url = await uploadToCloudinary(file);
 
-    // auto-fill URL field
+    settings.logoUrl = url;
+
     const input = root.querySelector('#logoUrl');
     if (input) input.value = url;
 
     renderPreview();
 
-    alert('Logo uploaded successfully!');
-  } catch (err) {
-    console.error(err);
-    alert('Upload failed');
+    alert('Logo uploaded successfully.');
+  } catch (error) {
+    console.error('❌ Logo upload failed:', error);
+    alert('Logo upload failed.');
   }
 });
-
-
-
-    renderPreview();
-  });
 
   root.querySelector('#brandText')?.addEventListener('input', renderPreview);
   root.querySelector('#logoUrl')?.addEventListener('input', renderPreview);
@@ -165,13 +161,14 @@ function renderPreview() {
 async function saveSettings() {
   const brandingMode = root.querySelector('#brandingMode')?.value || 'text';
   const brandText = root.querySelector('#brandText')?.value.trim() || 'MAGNA';
-  const logoUrl = root.querySelector('#logoUrl')?.value.trim() || '';
+  const logoInputValue = root.querySelector('#logoUrl')?.value.trim() || '';
 
   try {
     settings = {
+      ...settings,
       brandingMode,
       brandText,
-      logoUrl,
+      logoUrl: logoInputValue || settings.logoUrl || '',
       updatedAt: new Date().toISOString()
     };
 
