@@ -1,19 +1,19 @@
 import { db } from './firebase-config.js';
 import {
   collection,
-  getDocs,
   addDoc,
   deleteDoc,
   doc
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
 import { fetchUsersFromFirestore, updateUserInFirestore } from './firestore-users.js';
-import { getSession, setSession } from './store.js';
-import { getStoredSessionUser, setStoredSessionUser } from './session-user.js';
 import { addAdminLog } from './admin-helpers.js';
 
 let root = null;
 let users = [];
+let editingUserId = null;
+
+const ROLES = ['dieSetter', 'supervisor', 'admin'];
 
 export async function mountUsersTool(container) {
   root = container;
@@ -34,50 +34,72 @@ async function loadAndRender() {
 function render() {
   root.innerHTML = `
     <h2>Users</h2>
+    <p class="muted">Add users, assign role, set PIN, and manage access.</p>
 
     <div class="card">
       <h3>Add User</h3>
+
       <div class="grid-2" style="margin-top:12px;">
         <input id="newName" placeholder="Name" />
         <input id="newPin" placeholder="PIN" />
+
         <select id="newRole">
-          <option value="operator">operator</option>
-          <option value="dieSetter">dieSetter</option>
-          <option value="supervisor">supervisor</option>
-          <option value="admin">admin</option>
+          ${ROLES.map((role) => `<option value="${role}">${role}</option>`).join('')}
         </select>
+
         <select id="newStatus">
           <option value="active">Active</option>
           <option value="inactive">Inactive</option>
         </select>
       </div>
+
       <button id="addUserBtn" class="button primary" style="margin-top:12px;">Add User</button>
     </div>
 
-    <div style="display:grid; gap:16px; margin-top:16px;">
-      ${users.map(renderUserCard).join('')}
+    <div style="display:grid; gap:10px; margin-top:16px;">
+      ${users.map(renderUserRow).join('')}
     </div>
   `;
 
   wireEvents();
 }
 
-function renderUserCard(user) {
+function renderUserRow(user) {
   const status = user.status || 'active';
+  const isEditing = editingUserId === user.id;
+  const pinPreview = user.pin ? '••••' : 'No PIN';
+
+  if (!isEditing) {
+    return `
+      <div class="card" style="padding:14px 16px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+          <div>
+            <strong>${user.name || 'Unnamed User'}</strong>
+            <span class="muted"> · ${user.role || 'no role'} · ${status}</span>
+            <span class="muted"> · PIN: ${pinPreview}</span>
+          </div>
+
+          <div style="display:flex; gap:8px;">
+            <button data-edit="${user.id}" class="button">Edit</button>
+            <button data-delete="${user.id}" class="button">Delete</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
 
   return `
     <div class="card">
-      <strong>${user.name}</strong>
+      <strong>Edit User</strong>
 
       <div class="grid-2" style="margin-top:12px;">
-        <input data-name="${user.id}" value="${user.name || ''}" />
+        <input data-name="${user.id}" value="${user.name || ''}" placeholder="Name" />
         <input data-pin="${user.id}" value="${user.pin || ''}" placeholder="PIN" />
 
         <select data-role="${user.id}">
-          <option value="operator" ${user.role === 'operator' ? 'selected' : ''}>operator</option>
-          <option value="dieSetter" ${user.role === 'dieSetter' ? 'selected' : ''}>dieSetter</option>
-          <option value="supervisor" ${user.role === 'supervisor' ? 'selected' : ''}>supervisor</option>
-          <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>admin</option>
+          ${ROLES.map((role) => `
+            <option value="${role}" ${user.role === role ? 'selected' : ''}>${role}</option>
+          `).join('')}
         </select>
 
         <select data-status="${user.id}">
@@ -88,6 +110,7 @@ function renderUserCard(user) {
 
       <div style="margin-top:12px; display:flex; gap:10px;">
         <button data-save="${user.id}" class="button primary">Save</button>
+        <button data-cancel-edit class="button">Cancel</button>
         <button data-delete="${user.id}" class="button">Delete</button>
       </div>
     </div>
@@ -95,66 +118,101 @@ function renderUserCard(user) {
 }
 
 function wireEvents() {
-  // ADD USER
-  document.getElementById('addUserBtn')?.addEventListener('click', async () => {
-    const name = document.getElementById('newName').value.trim();
-    const pin = document.getElementById('newPin').value.trim();
-    const role = document.getElementById('newRole').value;
-    const status = document.getElementById('newStatus').value;
+  root.querySelector('#addUserBtn')?.addEventListener('click', handleAddUser);
 
-    if (!name) return alert('Name required');
-    if (role === 'dieSetter' && !pin) return alert('PIN required for die setters');
+  root.querySelectorAll('[data-edit]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      editingUserId = btn.dataset.edit;
+      render();
+    });
+  });
 
+  root.querySelectorAll('[data-cancel-edit]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      editingUserId = null;
+      render();
+    });
+  });
+
+  root.querySelectorAll('[data-save]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      await handleSaveUser(btn.dataset.save);
+    });
+  });
+
+  root.querySelectorAll('[data-delete]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      await handleDeleteUser(btn.dataset.delete);
+    });
+  });
+}
+
+async function handleAddUser() {
+  const name = root.querySelector('#newName')?.value.trim();
+  const pin = root.querySelector('#newPin')?.value.trim();
+  const role = root.querySelector('#newRole')?.value;
+  const status = root.querySelector('#newStatus')?.value;
+
+  if (!name) return alert('Name required.');
+  if (!pin) return alert('PIN required.');
+
+  try {
     await addDoc(collection(db, 'users'), {
       name,
       pin,
       role,
       status,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     });
 
-    await addAdminLog(`Created user ${name}`);
-    loadAndRender();
-  });
-
-  // SAVE USER
-  root.querySelectorAll('[data-save]').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const id = btn.dataset.save;
-
-      const name = root.querySelector(`[data-name="${id}"]`).value;
-      const pin = root.querySelector(`[data-pin="${id}"]`).value;
-      const role = root.querySelector(`[data-role="${id}"]`).value;
-      const status = root.querySelector(`[data-status="${id}"]`).value;
-
-      if (role === 'dieSetter' && !pin) return alert('PIN required');
-
-      await updateUserInFirestore(id, { name, pin, role, status });
-
-      await addAdminLog(`Updated ${name}`);
-      loadAndRender();
-    });
-  });
-
-  // DELETE USER
-  root.querySelectorAll('[data-delete]').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const id = btn.dataset.delete;
-
-      if (!confirm('Delete user?')) return;
-
-      await deleteDoc(doc(db, 'users', id));
-      await addAdminLog(`Deleted user ${id}`);
-      loadAndRender();
-    });
-  });
+    await addAdminLog(`Created user ${name} as ${role}`);
+    await loadAndRender();
+  } catch (error) {
+    console.error('❌ Add user failed:', error);
+    alert('Add user failed.');
+  }
 }
 
-function handleLiveSessionUpdate(userId, role, status) {
-  const current = getSession() || getStoredSessionUser();
-  if (!current || current.id !== userId) return;
+async function handleSaveUser(userId) {
+  const name = root.querySelector(`[data-name="${userId}"]`)?.value.trim();
+  const pin = root.querySelector(`[data-pin="${userId}"]`)?.value.trim();
+  const role = root.querySelector(`[data-role="${userId}"]`)?.value;
+  const status = root.querySelector(`[data-status="${userId}"]`)?.value;
 
-  const updated = { ...current, role, status };
-  setSession(updated);
-  setStoredSessionUser(updated);
+  if (!name) return alert('Name required.');
+  if (!pin) return alert('PIN required.');
+
+  try {
+    await updateUserInFirestore(userId, {
+      name,
+      pin,
+      role,
+      status
+    });
+
+    await addAdminLog(`Updated user ${name}`);
+    editingUserId = null;
+    await loadAndRender();
+  } catch (error) {
+    console.error('❌ Save user failed:', error);
+    alert('Save failed.');
+  }
+}
+
+async function handleDeleteUser(userId) {
+  const user = users.find((item) => item.id === userId);
+  const name = user?.name || userId;
+
+  if (!confirm(`Delete user "${name}"?`)) return;
+
+  try {
+    await deleteDoc(doc(db, 'users', userId));
+    await addAdminLog(`Deleted user ${name}`);
+    editingUserId = null;
+    await loadAndRender();
+  } catch (error) {
+    console.error('❌ Delete user failed:', error);
+    alert('Delete failed.');
+  }
 }
