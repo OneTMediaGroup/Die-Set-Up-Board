@@ -24,70 +24,82 @@ async function loadAndRender() {
     console.error('❌ Failed to load equipment:', error);
     root.innerHTML = `
       <div class="admin-content-header">
-        <div>
-          <h2>Equipment</h2>
-          <p class="muted">Could not load equipment.</p>
-        </div>
+        <h2>Equipment</h2>
+        <p class="muted">Could not load equipment.</p>
       </div>
     `;
   }
 }
 
-function render() {
-  const filtered = presses.filter((press) => {
+function getFilteredPresses() {
+  return presses.filter((press) => {
     const text = `${equipmentLabel(press)} ${press.areaName || ''}`.toLowerCase();
     return text.includes(searchText.toLowerCase());
   });
+}
+
+function render() {
+  const filtered = getFilteredPresses();
 
   root.innerHTML = `
     <div class="admin-content-header">
-      <div>
-        <h2>Equipment</h2>
-        <p class="muted">Create, search, edit, reset, and delete equipment.</p>
-      </div>
+      <h2>Equipment</h2>
+      <p class="muted">Create, search, edit, reset, and delete equipment.</p>
     </div>
 
     <div class="admin-card">
       <h3>Add Equipment</h3>
-      <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px;">
+      <div style="display:grid; grid-template-columns: minmax(260px, 1fr) auto; gap:12px; margin-top:12px;">
         <input id="newEquipmentName" placeholder="Example: 150B RH" />
-        <button id="createEquipmentBtn" class="button primary">Add Equipment</button>
+        <button id="createEquipmentBtn" class="button primary">Add</button>
       </div>
     </div>
 
     <div class="admin-card admin-table-card" style="margin-top:16px;">
-      <div class="section-header">
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
         <div>
           <h2>All Equipment</h2>
-          <div class="muted">${filtered.length} shown · ${presses.length} total</div>
+          <div id="equipmentCountText" class="muted">${filtered.length} shown · ${presses.length} total</div>
         </div>
-        <input id="equipmentSearch" value="${searchText}" placeholder="Search equipment..." style="max-width:280px;" />
+        <input id="equipmentSearch" value="${searchText}" placeholder="Search..." style="width:260px;" />
       </div>
 
-      <div class="admin-table-wrap" style="margin-top:14px;">
+      <div class="admin-table-wrap" style="margin-top:12px;">
         <table class="admin-table">
           <thead>
             <tr>
-              <th>#</th>
+              <th style="width:60px;">#</th>
               <th>Equipment</th>
               <th>Area</th>
-              <th>Setups</th>
-              <th>Actions</th>
+              <th style="width:80px;">Setups</th>
+              <th style="width:240px;">Actions</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody id="equipmentTableBody">
             ${renderEquipmentRows(filtered)}
           </tbody>
         </table>
       </div>
     </div>
 
-    <div class="muted" style="margin-top:18px; text-align:center;">
+    <div class="muted" style="margin-top:16px; text-align:center;">
       © One T Media Group
     </div>
   `;
 
   wireEvents();
+}
+
+function refreshEquipmentTable() {
+  const filtered = getFilteredPresses();
+
+  const body = root.querySelector('#equipmentTableBody');
+  const count = root.querySelector('#equipmentCountText');
+
+  if (body) body.innerHTML = renderEquipmentRows(filtered);
+  if (count) count.textContent = `${filtered.length} shown · ${presses.length} total`;
+
+  wireRowEvents(); // ONLY rebind row buttons
 }
 
 function renderEquipmentRows(list) {
@@ -96,7 +108,7 @@ function renderEquipmentRows(list) {
   }
 
   return list.map((press, index) => {
-    const activeCount = (press.slots || []).filter((slot) => slot.partNumber).length;
+    const activeCount = (press.slots || []).filter((s) => s.partNumber).length;
     const areaLabel = press.areaName || 'Unassigned';
     const areaColor = press.areaColor || '#64748b';
     const isEditing = editingId === press.id;
@@ -106,7 +118,7 @@ function renderEquipmentRows(list) {
         <tr>
           <td>${index + 1}</td>
           <td colspan="4">
-            <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
               <input data-edit-name="${press.id}" value="${equipmentLabel(press)}" />
               <button class="button primary" data-save-equipment="${press.id}">Save</button>
               <button class="button" data-cancel-edit>Cancel</button>
@@ -125,7 +137,7 @@ function renderEquipmentRows(list) {
         <td><span class="admin-area-pill" style="background:${areaColor}22; color:${areaColor};">${areaLabel}</span></td>
         <td>${activeCount}</td>
         <td>
-          <div class="admin-row-actions">
+          <div style="display:flex; gap:6px;">
             <button class="button" data-edit-equipment="${press.id}">Edit</button>
             <button class="button danger-outline" data-reset-equipment="${press.id}">Reset</button>
             <button class="button" data-delete-equipment="${press.id}">Delete</button>
@@ -136,151 +148,122 @@ function renderEquipmentRows(list) {
   }).join('');
 }
 
+/* ---------- EVENTS ---------- */
+
 function wireEvents() {
   root.querySelector('#createEquipmentBtn')?.addEventListener('click', handleCreateEquipment);
 
-  root.querySelector('#equipmentSearch')?.addEventListener('input', (event) => {
-    searchText = event.target.value;
-    render();
+  root.querySelector('#equipmentSearch')?.addEventListener('input', (e) => {
+    searchText = e.target.value;
+    refreshEquipmentTable(); // 🔥 no full render = FIXED
   });
 
-  root.querySelectorAll('[data-edit-equipment]').forEach((button) => {
-    button.addEventListener('click', () => {
-      editingId = button.dataset.editEquipment;
+  wireRowEvents();
+}
+
+function wireRowEvents() {
+  root.querySelectorAll('[data-edit-equipment]').forEach((btn) => {
+    btn.onclick = () => {
+      editingId = btn.dataset.editEquipment;
       render();
-    });
+    };
   });
 
-  root.querySelectorAll('[data-cancel-edit]').forEach((button) => {
-    button.addEventListener('click', () => {
+  root.querySelectorAll('[data-cancel-edit]').forEach((btn) => {
+    btn.onclick = () => {
       editingId = null;
       render();
-    });
+    };
   });
 
-  root.querySelectorAll('[data-save-equipment]').forEach((button) => {
-    button.addEventListener('click', async () => {
-      await handleSaveEquipment(button.dataset.saveEquipment);
-    });
+  root.querySelectorAll('[data-save-equipment]').forEach((btn) => {
+    btn.onclick = async () => {
+      await handleSaveEquipment(btn.dataset.saveEquipment);
+    };
   });
 
-  root.querySelectorAll('[data-reset-equipment]').forEach((button) => {
-    button.addEventListener('click', async () => {
-      await handleResetEquipment(button.dataset.resetEquipment);
-    });
+  root.querySelectorAll('[data-reset-equipment]').forEach((btn) => {
+    btn.onclick = async () => {
+      await handleResetEquipment(btn.dataset.resetEquipment);
+    };
   });
 
-  root.querySelectorAll('[data-delete-equipment]').forEach((button) => {
-    button.addEventListener('click', async () => {
-      await handleDeleteEquipment(button.dataset.deleteEquipment);
-    });
+  root.querySelectorAll('[data-delete-equipment]').forEach((btn) => {
+    btn.onclick = async () => {
+      await handleDeleteEquipment(btn.dataset.deleteEquipment);
+    };
   });
 }
+
+/* ---------- ACTIONS ---------- */
 
 async function handleCreateEquipment() {
   const input = root.querySelector('#newEquipmentName');
   const name = input?.value.trim();
 
-  if (!name) {
-    alert('Equipment name is required.');
-    input?.focus();
-    return;
-  }
+  if (!name) return alert('Enter equipment name');
 
   const nextNumber = presses.length
-    ? Math.max(...presses.map((press) => Number(press.pressNumber || 0))) + 1
+    ? Math.max(...presses.map(p => Number(p.pressNumber || 0))) + 1
     : 1;
 
-  try {
-    await addDoc(collection(db, 'presses'), {
-      equipmentName: name,
-      pressNumber: nextNumber,
-      shift: '1',
-      areaId: null,
-      areaName: null,
-      areaColor: null,
-      isLocked: false,
-      slots: emptySlots(),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    });
+  await addDoc(collection(db, 'presses'), {
+    equipmentName: name,
+    pressNumber: nextNumber,
+    shift: '1',
+    areaId: null,
+    areaName: null,
+    areaColor: null,
+    isLocked: false,
+    slots: emptySlots(),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  });
 
-    await addAdminLog(`Created equipment ${name}`);
-    editingId = null;
-    await loadAndRender();
-  } catch (error) {
-    console.error('❌ Failed to create equipment:', error);
-    alert('Create equipment failed.');
-  }
+  await addAdminLog(`Created ${name}`);
+  editingId = null;
+  await loadAndRender();
 }
 
-async function handleSaveEquipment(pressId) {
-  const press = presses.find((item) => item.id === pressId);
-  const input = root.querySelector(`[data-edit-name="${pressId}"]`);
+async function handleSaveEquipment(id) {
+  const press = presses.find(p => p.id === id);
+  const input = root.querySelector(`[data-edit-name="${id}"]`);
   const name = input?.value.trim();
 
-  if (!press || !name) {
-    alert('Equipment name cannot be blank.');
-    input?.focus();
-    return;
-  }
+  if (!name) return alert('Name required');
 
-  const oldName = equipmentLabel(press);
+  await updateDoc(doc(db, 'presses', id), {
+    equipmentName: name,
+    updatedAt: new Date().toISOString()
+  });
 
-  try {
-    await updateDoc(doc(db, 'presses', press.id), {
-      equipmentName: name,
-      updatedAt: new Date().toISOString()
-    });
-
-    await addAdminLog(`Renamed equipment ${oldName} to ${name}`);
-    editingId = null;
-    await loadAndRender();
-  } catch (error) {
-    console.error('❌ Failed to save equipment:', error);
-    alert('Save equipment failed.');
-  }
+  await addAdminLog(`Renamed ${equipmentLabel(press)} to ${name}`);
+  editingId = null;
+  await loadAndRender();
 }
 
-async function handleDeleteEquipment(pressId) {
-  const press = presses.find((item) => item.id === pressId);
-  if (!press) return;
+async function handleDeleteEquipment(id) {
+  const press = presses.find(p => p.id === id);
+  if (!confirm(`Delete ${equipmentLabel(press)}?`)) return;
 
-  const label = equipmentLabel(press);
-
-  if (!confirm(`Delete equipment "${label}"?\n\nThis removes it from the system.`)) return;
-
-  try {
-    await deleteDoc(doc(db, 'presses', press.id));
-    await addAdminLog(`Deleted equipment ${label}`);
-    editingId = null;
-    await loadAndRender();
-  } catch (error) {
-    console.error('❌ Failed to delete equipment:', error);
-    alert('Delete equipment failed.');
-  }
+  await deleteDoc(doc(db, 'presses', id));
+  await addAdminLog(`Deleted ${equipmentLabel(press)}`);
+  editingId = null;
+  await loadAndRender();
 }
 
-async function handleResetEquipment(pressId) {
-  const press = presses.find((item) => item.id === pressId);
-  if (!press) return;
-
+async function handleResetEquipment(id) {
+  const press = presses.find(p => p.id === id);
   const session = getSession() || getStoredSessionUser() || { name: 'Admin' };
-  const label = equipmentLabel(press);
 
-  if (!confirm(`Reset "${label}"?\n\nThis clears all 4 slots and saves the old state to archives.`)) return;
+  if (!confirm(`Reset ${equipmentLabel(press)}?`)) return;
 
-  try {
-    await archiveAndResetPressInFirestore({
-      pressId: press.id,
-      userName: session.name
-    });
+  await archiveAndResetPressInFirestore({
+    pressId: id,
+    userName: session.name
+  });
 
-    await addAdminLog(`Reset equipment ${label}`);
-    editingId = null;
-    await loadAndRender();
-  } catch (error) {
-    console.error('❌ Failed to reset equipment:', error);
-    alert('Reset equipment failed.');
-  }
+  await addAdminLog(`Reset ${equipmentLabel(press)}`);
+  editingId = null;
+  await loadAndRender();
 }
