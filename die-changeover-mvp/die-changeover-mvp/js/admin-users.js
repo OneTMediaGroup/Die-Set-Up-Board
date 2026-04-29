@@ -1,3 +1,12 @@
+import { db } from './firebase-config.js';
+import {
+  collection,
+  getDocs,
+  addDoc,
+  deleteDoc,
+  doc
+} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+
 import { fetchUsersFromFirestore, updateUserInFirestore } from './firestore-users.js';
 import { getSession, setSession } from './store.js';
 import { getStoredSessionUser, setStoredSessionUser } from './session-user.js';
@@ -18,89 +27,125 @@ async function loadAndRender() {
     render();
   } catch (error) {
     console.error('❌ Failed to load users:', error);
-    root.innerHTML = `<h2>Users</h2><div class="muted">Could not load users from Firestore.</div>`;
+    root.innerHTML = `<h2>Users</h2><div class="muted">Could not load users.</div>`;
   }
 }
 
 function render() {
   root.innerHTML = `
-    <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
-      <div>
-        <h2>Users</h2>
-        <p class="muted">Manage roles and access.</p>
+    <h2>Users</h2>
+
+    <div class="card">
+      <h3>Add User</h3>
+      <div class="grid-2" style="margin-top:12px;">
+        <input id="newName" placeholder="Name" />
+        <input id="newPin" placeholder="PIN" />
+        <select id="newRole">
+          <option value="operator">operator</option>
+          <option value="dieSetter">dieSetter</option>
+          <option value="supervisor">supervisor</option>
+          <option value="admin">admin</option>
+        </select>
+        <select id="newStatus">
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+        </select>
       </div>
-      <div style="display:flex; align-items:center; gap:12px;">
-        <span class="muted">Count: <strong>${users.length}</strong></span>
-        <button id="refreshUsersBtn" class="button">Refresh</button>
-      </div>
+      <button id="addUserBtn" class="button primary" style="margin-top:12px;">Add User</button>
     </div>
-    <div style="display:grid; gap:16px; margin-top:16px;">${renderUserCards()}</div>
+
+    <div style="display:grid; gap:16px; margin-top:16px;">
+      ${users.map(renderUserCard).join('')}
+    </div>
   `;
 
-  root.querySelector('#refreshUsersBtn')?.addEventListener('click', loadAndRender);
-  wireSaveButtons();
+  wireEvents();
 }
 
-function renderUserCards() {
-  if (!users.length) {
-    return `<div class="card"><strong>No users found</strong><div class="muted">Seed users or check Firestore project/config.</div></div>`;
-  }
+function renderUserCard(user) {
+  const status = user.status || 'active';
 
-  return users.map((user) => {
-    const status = user.status || (user.isActive === false ? 'inactive' : 'active');
-    return `
-      <div class="card">
-        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;">
-          <div><strong>${user.name}</strong><div class="muted">User ID: ${user.id}</div></div>
-          <span class="status-pill ${status === 'active' ? 'running' : 'blocked'}">${status === 'active' ? 'Active' : 'Inactive'}</span>
-        </div>
-        <div class="grid-2" style="margin-top:16px;">
-          <div>
-            <label class="muted">Role</label>
-            <select data-role="${user.id}">
-              <option value="operator" ${user.role === 'operator' ? 'selected' : ''}>operator</option>
-              <option value="dieSetter" ${user.role === 'dieSetter' ? 'selected' : ''}>dieSetter</option>
-              <option value="supervisor" ${user.role === 'supervisor' ? 'selected' : ''}>supervisor</option>
-              <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>admin</option>
-            </select>
-          </div>
-          <div>
-            <label class="muted">Status</label>
-            <select data-status="${user.id}">
-              <option value="active" ${status === 'active' ? 'selected' : ''}>Active</option>
-              <option value="inactive" ${status === 'inactive' ? 'selected' : ''}>Inactive</option>
-            </select>
-          </div>
-        </div>
-        <div style="margin-top:14px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
-          <button data-save="${user.id}" class="button primary">Save User</button>
-          <span class="muted">Current role: ${user.role}</span>
-        </div>
-      </div>`;
-  }).join('');
+  return `
+    <div class="card">
+      <strong>${user.name}</strong>
+
+      <div class="grid-2" style="margin-top:12px;">
+        <input data-name="${user.id}" value="${user.name || ''}" />
+        <input data-pin="${user.id}" value="${user.pin || ''}" placeholder="PIN" />
+
+        <select data-role="${user.id}">
+          <option value="operator" ${user.role === 'operator' ? 'selected' : ''}>operator</option>
+          <option value="dieSetter" ${user.role === 'dieSetter' ? 'selected' : ''}>dieSetter</option>
+          <option value="supervisor" ${user.role === 'supervisor' ? 'selected' : ''}>supervisor</option>
+          <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>admin</option>
+        </select>
+
+        <select data-status="${user.id}">
+          <option value="active" ${status === 'active' ? 'selected' : ''}>Active</option>
+          <option value="inactive" ${status === 'inactive' ? 'selected' : ''}>Inactive</option>
+        </select>
+      </div>
+
+      <div style="margin-top:12px; display:flex; gap:10px;">
+        <button data-save="${user.id}" class="button primary">Save</button>
+        <button data-delete="${user.id}" class="button">Delete</button>
+      </div>
+    </div>
+  `;
 }
 
-function wireSaveButtons() {
-  root.querySelectorAll('[data-save]').forEach((btn) => {
+function wireEvents() {
+  // ADD USER
+  document.getElementById('addUserBtn')?.addEventListener('click', async () => {
+    const name = document.getElementById('newName').value.trim();
+    const pin = document.getElementById('newPin').value.trim();
+    const role = document.getElementById('newRole').value;
+    const status = document.getElementById('newStatus').value;
+
+    if (!name) return alert('Name required');
+    if (role === 'dieSetter' && !pin) return alert('PIN required for die setters');
+
+    await addDoc(collection(db, 'users'), {
+      name,
+      pin,
+      role,
+      status,
+      createdAt: new Date().toISOString()
+    });
+
+    await addAdminLog(`Created user ${name}`);
+    loadAndRender();
+  });
+
+  // SAVE USER
+  root.querySelectorAll('[data-save]').forEach(btn => {
     btn.addEventListener('click', async () => {
-      const userId = btn.dataset.save;
-      const roleSelect = root.querySelector(`[data-role="${userId}"]`);
-      const statusSelect = root.querySelector(`[data-status="${userId}"]`);
-      if (!roleSelect || !statusSelect) return;
+      const id = btn.dataset.save;
 
-      try {
-        btn.disabled = true;
-        btn.textContent = 'Saving...';
-        await updateUserInFirestore(userId, { role: roleSelect.value, status: statusSelect.value });
-        handleLiveSessionUpdate(userId, roleSelect.value, statusSelect.value);
-        await addAdminLog(`Updated user ${userId} to ${roleSelect.value} / ${statusSelect.value}`);
-        await loadAndRender();
-      } catch (error) {
-        console.error('❌ Failed to save user:', error);
-        btn.disabled = false;
-        btn.textContent = 'Save User';
-        alert('Save failed');
-      }
+      const name = root.querySelector(`[data-name="${id}"]`).value;
+      const pin = root.querySelector(`[data-pin="${id}"]`).value;
+      const role = root.querySelector(`[data-role="${id}"]`).value;
+      const status = root.querySelector(`[data-status="${id}"]`).value;
+
+      if (role === 'dieSetter' && !pin) return alert('PIN required');
+
+      await updateUserInFirestore(id, { name, pin, role, status });
+
+      await addAdminLog(`Updated ${name}`);
+      loadAndRender();
+    });
+  });
+
+  // DELETE USER
+  root.querySelectorAll('[data-delete]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = btn.dataset.delete;
+
+      if (!confirm('Delete user?')) return;
+
+      await deleteDoc(doc(db, 'users', id));
+      await addAdminLog(`Deleted user ${id}`);
+      loadAndRender();
     });
   });
 }
@@ -108,7 +153,8 @@ function wireSaveButtons() {
 function handleLiveSessionUpdate(userId, role, status) {
   const current = getSession() || getStoredSessionUser();
   if (!current || current.id !== userId) return;
-  const updatedUser = { ...current, role, status, isActive: status === 'active' };
-  setSession(updatedUser);
-  setStoredSessionUser(updatedUser);
+
+  const updated = { ...current, role, status };
+  setSession(updated);
+  setStoredSessionUser(updated);
 }
