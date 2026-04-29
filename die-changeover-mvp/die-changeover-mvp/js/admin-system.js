@@ -138,6 +138,11 @@ root.querySelector('#logoFileInput')?.addEventListener('change', async (e) => {
   }
 });
 
+
+
+    renderPreview();
+  });
+
   root.querySelector('#brandText')?.addEventListener('input', renderPreview);
   root.querySelector('#logoUrl')?.addEventListener('input', renderPreview);
   root.querySelector('#saveSystemSettingsBtn')?.addEventListener('click', saveSettings);
