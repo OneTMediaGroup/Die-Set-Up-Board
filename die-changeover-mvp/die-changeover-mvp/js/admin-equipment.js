@@ -42,48 +42,50 @@ function render() {
   const filtered = getFilteredPresses();
 
   root.innerHTML = `
-    <div class="admin-content-header">
-      <h2>Equipment</h2>
-      <p class="muted">Create, search, edit, reset, and delete equipment.</p>
-    </div>
-
-    <div class="admin-card">
-      <h3>Add Equipment</h3>
-      <div style="display:grid; grid-template-columns: minmax(260px, 1fr) auto; gap:12px; margin-top:12px;">
-        <input id="newEquipmentName" placeholder="Example: 150B RH" />
-        <button id="createEquipmentBtn" class="button primary">Add</button>
+    <div style="max-width:980px;">
+      <div class="admin-content-header">
+        <h2>Equipment</h2>
+        <p class="muted">Create, search, edit, reset, and delete equipment.</p>
       </div>
-    </div>
 
-    <div class="admin-card admin-table-card" style="margin-top:16px;">
-      <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
-        <div>
-          <h2>All Equipment</h2>
-          <div id="equipmentCountText" class="muted">${filtered.length} shown · ${presses.length} total</div>
+      <div class="admin-card">
+        <h3>Add Equipment</h3>
+        <div style="display:flex; gap:12px; flex-wrap:wrap; margin-top:12px;">
+          <input id="newEquipmentName" placeholder="Example: 150B RH" style="max-width:420px;" />
+          <button id="createEquipmentBtn" class="button primary">Add</button>
         </div>
-        <input id="equipmentSearch" value="${searchText}" placeholder="Search..." style="width:260px;" />
       </div>
 
-      <div class="admin-table-wrap" style="margin-top:12px;">
-        <table class="admin-table">
-          <thead>
-            <tr>
-              <th style="width:60px;">#</th>
-              <th>Equipment</th>
-              <th>Area</th>
-              <th style="width:80px;">Setups</th>
-              <th style="width:240px;">Actions</th>
-            </tr>
-          </thead>
-          <tbody id="equipmentTableBody">
-            ${renderEquipmentRows(filtered)}
-          </tbody>
-        </table>
-      </div>
-    </div>
+      <div class="admin-card admin-table-card" style="margin-top:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-end; gap:12px; flex-wrap:wrap;">
+          <div>
+            <h2>All Equipment</h2>
+            <div id="equipmentCountText" class="muted">${filtered.length} shown · ${presses.length} total</div>
+          </div>
+          <input id="equipmentSearch" value="${searchText}" placeholder="Search..." style="width:260px; max-width:100%;" />
+        </div>
 
-    <div class="muted" style="margin-top:16px; text-align:center;">
-      © One T Media Group
+        <div class="admin-table-wrap" style="margin-top:12px;">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th style="width:60px;">#</th>
+                <th>Equipment</th>
+                <th style="width:180px;">Area</th>
+                <th style="width:90px;">Setups</th>
+                <th style="width:260px;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="equipmentTableBody">
+              ${renderEquipmentRows(filtered)}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="muted" style="margin-top:16px; text-align:center;">
+        © One T Media Group
+      </div>
     </div>
   `;
 
@@ -118,8 +120,8 @@ function renderEquipmentRows(list) {
         <tr>
           <td>${index + 1}</td>
           <td colspan="4">
-            <div style="display:flex; gap:8px; flex-wrap:wrap;">
-              <input data-edit-name="${press.id}" value="${equipmentLabel(press)}" />
+            <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+              <input data-edit-name="${press.id}" value="${equipmentLabel(press)}" style="max-width:320px;" />
               <button class="button primary" data-save-equipment="${press.id}">Save</button>
               <button class="button" data-cancel-edit>Cancel</button>
               <button class="button danger-outline" data-reset-equipment="${press.id}">Reset</button>
@@ -137,7 +139,7 @@ function renderEquipmentRows(list) {
         <td><span class="admin-area-pill" style="background:${areaColor}22; color:${areaColor};">${areaLabel}</span></td>
         <td>${activeCount}</td>
         <td>
-          <div style="display:flex; gap:6px;">
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
             <button class="button" data-edit-equipment="${press.id}">Edit</button>
             <button class="button danger-outline" data-reset-equipment="${press.id}">Reset</button>
             <button class="button" data-delete-equipment="${press.id}">Delete</button>
