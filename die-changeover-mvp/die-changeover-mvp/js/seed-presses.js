@@ -29,4 +29,4 @@ async function seedPresses() {
   }
 }
 
-seedPresses();
+// seedPresses disabled

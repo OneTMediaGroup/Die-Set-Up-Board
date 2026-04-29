@@ -21,7 +21,7 @@ async function testWrite() {
 }
 
 // run it once
-testWrite();
+// testWrite disabled
 function startRealtimeTest() {
   const testCollection = collection(db, "test");
 
@@ -35,7 +35,7 @@ function startRealtimeTest() {
   });
 }
 
-startRealtimeTest();
+// startRealtimeTest disabled
 async function testRead() {
   try {
     const querySnapshot = await getDocs(collection(db, "test"));
@@ -61,6 +61,6 @@ if (demoLoginBtn) {
     renderSession();
   });
 }
-//testWrite();
+//// testWrite disabled
 //testRead();
 renderSession();

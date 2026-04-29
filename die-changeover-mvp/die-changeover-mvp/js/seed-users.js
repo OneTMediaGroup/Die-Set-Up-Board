@@ -39,4 +39,4 @@ async function seedUsers() {
   }
 }
 
-seedUsers();
+// seedUsers disabled
