@@ -59,9 +59,13 @@ function render() {
 
 <div id="logoModeBlock" style="${settings.brandingMode === 'logo' ? '' : 'display:none;'}">
   <label>
-    <span>Logo Image URL</span>
-    <input id="logoUrl" value="${escapeAttr(settings.logoUrl)}" placeholder="https://..." />
+    <span>Upload Logo</span>
+    <input type="file" id="logoFileInput" accept="image/*" />
   </label>
+
+  <div class="muted">Or paste a URL</div>
+
+  <input id="logoUrl" value="${escapeAttr(settings.logoUrl)}" placeholder="https://..." />
 </div>
         
 
@@ -83,12 +87,57 @@ function render() {
   renderPreview();
 }
 
+async function uploadToCloudinary(file) {
+  const cloudName = 'dnpqzmoua';
+  const uploadPreset = 'branding_upload';
+
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('upload_preset', uploadPreset);
+
+  const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+    method: 'POST',
+    body: formData
+  });
+
+  const data = await res.json();
+
+  if (!data.secure_url) {
+    throw new Error('Upload failed');
+  }
+
+  return data.secure_url;
+}
+
+
+
 function wireEvents() {
   root.querySelector('#brandingMode')?.addEventListener('change', () => {
     const mode = root.querySelector('#brandingMode')?.value || 'text';
 
     root.querySelector('#textModeBlock').style.display = mode === 'text' ? '' : 'none';
     root.querySelector('#logoModeBlock').style.display = mode === 'logo' ? '' : 'none';
+root.querySelector('#logoFileInput')?.addEventListener('change', async (e) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  try {
+    const url = await uploadToCloudinary(file);
+
+    // auto-fill URL field
+    const input = root.querySelector('#logoUrl');
+    if (input) input.value = url;
+
+    renderPreview();
+
+    alert('Logo uploaded successfully!');
+  } catch (err) {
+    console.error(err);
+    alert('Upload failed');
+  }
+});
+
+
 
     renderPreview();
   });
