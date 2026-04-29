@@ -134,6 +134,7 @@ function wireEvents() {
       const url = await uploadToCloudinary(file);
 
       settings.logoUrl = url;
+      root.querySelector('#brandingMode').value = 'logo';
 
       const input = root.querySelector('#logoUrl');
       if (input) input.value = url;
@@ -148,7 +149,7 @@ function wireEvents() {
       alert('Logo upload failed.');
     }
   });
-root.querySelector('#brandingMode').value = 'logo';
+
   root.querySelector('#brandText')?.addEventListener('input', renderPreview);
   root.querySelector('#logoUrl')?.addEventListener('input', renderPreview);
   root.querySelector('#saveSystemSettingsBtn')?.addEventListener('click', saveSettings);
