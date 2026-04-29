@@ -133,7 +133,7 @@ function render() {
       </div>
     </div>
 
-    <div class="admin-card user-management-panel">
+       <div class="admin-card user-management-panel">
       <div class="section-header">
         <div>
           <h2>User List</h2>
@@ -153,6 +153,10 @@ function render() {
       <div class="user-row-list">
         ${visibleUsers.length ? visibleUsers.map(renderUserRow).join('') : `<div class="muted user-empty-state">No users match this search.</div>`}
       </div>
+    </div>
+
+    <div class="muted" style="margin-top:16px; text-align:center;">
+      © One T Media Group
     </div>
   `;
 
