@@ -1392,3 +1392,148 @@ input, textarea, select {
 }
 
 
+
+/* ============================= */
+/* ADMIN USERS POLISH */
+/* ============================= */
+
+.user-add-panel,
+.user-management-panel {
+  overflow: hidden;
+}
+
+.user-add-grid {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.4fr) minmax(160px, 0.8fr) minmax(140px, 0.7fr) minmax(140px, 0.7fr) auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.user-add-grid label,
+.user-edit-grid label {
+  display: grid;
+  gap: 6px;
+}
+
+.user-add-grid label span,
+.user-edit-grid label span {
+  color: var(--muted, #6b7280);
+  font-size: 0.85rem;
+}
+
+.user-add-button {
+  min-height: 42px;
+  white-space: nowrap;
+}
+
+.user-toolbar {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) 220px;
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.user-row-list {
+  display: grid;
+  gap: 8px;
+}
+
+.user-row {
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(255, 255, 255, 0.74);
+  border-radius: 16px;
+}
+
+.compact-user-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+}
+
+.user-main-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.user-row-actions,
+.user-edit-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.user-role-pill {
+  border-radius: 999px;
+  padding: 5px 10px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  background: rgba(37, 99, 235, 0.1);
+  color: #1d4ed8;
+}
+
+.user-role-pill.role-diesetter {
+  background: rgba(22, 163, 74, 0.12);
+  color: #15803d;
+}
+
+.user-role-pill.role-supervisor {
+  background: rgba(147, 51, 234, 0.12);
+  color: #7e22ce;
+}
+
+.user-role-pill.role-admin {
+  background: rgba(245, 158, 11, 0.16);
+  color: #b45309;
+}
+
+.user-pin-preview {
+  white-space: nowrap;
+}
+
+.user-edit-row {
+  padding: 16px;
+}
+
+.user-edit-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(150px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.user-edit-actions {
+  margin-top: 12px;
+}
+
+.user-empty-state {
+  padding: 14px;
+}
+
+@media (max-width: 1000px) {
+  .user-add-grid,
+  .user-edit-grid {
+    grid-template-columns: repeat(2, minmax(180px, 1fr));
+  }
+
+  .user-toolbar {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .user-add-grid,
+  .user-edit-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .compact-user-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

@@ -21,7 +21,7 @@ async function init() {
   await mountUserSwitcher({
     selectId: 'userSwitcher',
     labelId: 'currentAdminUser',
-    allowedRoles: ['admin', 'supervisor', 'dieSetter', 'operator']
+    allowedRoles: ['admin', 'supervisor', 'dieSetter']
   });
 
   toolButtons.forEach((button) => {

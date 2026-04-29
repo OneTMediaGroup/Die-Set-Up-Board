@@ -7,13 +7,27 @@ import {
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
 import { fetchUsersFromFirestore, updateUserInFirestore } from './firestore-users.js';
+import { getSession, setSession } from './store.js';
+import { getStoredSessionUser, setStoredSessionUser } from './session-user.js';
 import { addAdminLog } from './admin-helpers.js';
 
 let root = null;
 let users = [];
 let editingUserId = null;
+let searchText = '';
+let roleFilter = 'all';
 
-const ROLES = ['dieSetter', 'supervisor', 'admin'];
+const ROLES = [
+  { value: 'dieSetter', label: 'Die Setter' },
+  { value: 'supervisor', label: 'Supervisor' },
+  { value: 'admin', label: 'Admin' }
+];
+
+const ROLE_ORDER = {
+  dieSetter: 1,
+  supervisor: 2,
+  admin: 3
+};
 
 export async function mountUsersTool(container) {
   root = container;
@@ -24,6 +38,7 @@ export async function mountUsersTool(container) {
 async function loadAndRender() {
   try {
     users = await fetchUsersFromFirestore();
+    sortUsers();
     render();
   } catch (error) {
     console.error('❌ Failed to load users:', error);
@@ -31,33 +46,113 @@ async function loadAndRender() {
   }
 }
 
+function sortUsers() {
+  users = [...users].sort((a, b) => {
+    const roleA = ROLE_ORDER[a.role] || 99;
+    const roleB = ROLE_ORDER[b.role] || 99;
+    if (roleA !== roleB) return roleA - roleB;
+    return String(a.name || '').localeCompare(String(b.name || ''), undefined, { numeric: true });
+  });
+}
+
+function roleLabel(role) {
+  return ROLES.find((item) => item.value === role)?.label || role || 'No Role';
+}
+
+function statusFor(user) {
+  return user.status || (user.isActive === false ? 'inactive' : 'active');
+}
+
+function filteredUsers() {
+  return users.filter((user) => {
+    const matchesRole = roleFilter === 'all' || user.role === roleFilter;
+    const search = searchText.trim().toLowerCase();
+    const matchesSearch = !search ||
+      String(user.name || '').toLowerCase().includes(search) ||
+      String(user.role || '').toLowerCase().includes(search) ||
+      String(user.id || '').toLowerCase().includes(search);
+
+    return matchesRole && matchesSearch;
+  });
+}
+
+function roleCount(role) {
+  return users.filter((user) => user.role === role).length;
+}
+
 function render() {
+  const visibleUsers = filteredUsers();
+
   root.innerHTML = `
-    <h2>Users</h2>
-    <p class="muted">Add users, assign role, set PIN, and manage access.</p>
+    <div class="admin-content-header">
+      <div>
+        <h2>Users</h2>
+        <p class="muted">Add users, set roles, manage PINs, and control access.</p>
+      </div>
+      <div class="topbar-right">
+        <div class="header-stat"><span>Total</span><strong>${users.length}</strong></div>
+        <div class="header-stat"><span>Active</span><strong>${users.filter((user) => statusFor(user) === 'active').length}</strong></div>
+      </div>
+    </div>
 
-    <div class="card">
-      <h3>Add User</h3>
+    <div class="admin-card user-add-panel">
+      <div class="section-header">
+        <div>
+          <h2>Add User</h2>
+          <div class="muted">Die setters need a PIN for Complete + Shift.</div>
+        </div>
+      </div>
 
-      <div class="grid-2" style="margin-top:12px;">
-        <input id="newName" placeholder="Name" />
-        <input id="newPin" placeholder="PIN" />
+      <div class="user-add-grid">
+        <label>
+          <span>Name</span>
+          <input id="newUserName" placeholder="Example: Bab S." autocomplete="off" />
+        </label>
 
-        <select id="newRole">
-          ${ROLES.map((role) => `<option value="${role}">${role}</option>`).join('')}
-        </select>
+        <label>
+          <span>Role</span>
+          <select id="newUserRole">
+            ${ROLES.map((role) => `<option value="${role.value}" ${role.value === 'dieSetter' ? 'selected' : ''}>${role.label}</option>`).join('')}
+          </select>
+        </label>
 
-        <select id="newStatus">
-          <option value="active">Active</option>
-          <option value="inactive">Inactive</option>
+        <label>
+          <span>PIN</span>
+          <input id="newUserPin" type="password" inputmode="numeric" placeholder="4 digit PIN" autocomplete="new-password" />
+        </label>
+
+        <label>
+          <span>Status</span>
+          <select id="newUserStatus">
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </select>
+        </label>
+
+        <button id="addUserBtn" class="button primary user-add-button">+ Add User</button>
+      </div>
+    </div>
+
+    <div class="admin-card user-management-panel">
+      <div class="section-header">
+        <div>
+          <h2>User List</h2>
+          <div class="muted">Single-line rows. Click Edit only when you need to change details or reset a PIN.</div>
+        </div>
+        <button id="refreshUsersBtn" class="button">Refresh</button>
+      </div>
+
+      <div class="user-toolbar">
+        <input id="userSearchInput" value="${escapeAttr(searchText)}" placeholder="Search users..." />
+        <select id="userRoleFilter">
+          <option value="all" ${roleFilter === 'all' ? 'selected' : ''}>All roles (${users.length})</option>
+          ${ROLES.map((role) => `<option value="${role.value}" ${roleFilter === role.value ? 'selected' : ''}>${role.label} (${roleCount(role.value)})</option>`).join('')}
         </select>
       </div>
 
-      <button id="addUserBtn" class="button primary" style="margin-top:12px;">Add User</button>
-    </div>
-
-    <div style="display:grid; gap:10px; margin-top:16px;">
-      ${users.map(renderUserRow).join('')}
+      <div class="user-row-list">
+        ${visibleUsers.length ? visibleUsers.map(renderUserRow).join('') : `<div class="muted user-empty-state">No users match this search.</div>`}
+      </div>
     </div>
   `;
 
@@ -65,53 +160,69 @@ function render() {
 }
 
 function renderUserRow(user) {
-  const status = user.status || 'active';
+  const status = statusFor(user);
   const isEditing = editingUserId === user.id;
   const pinPreview = user.pin ? '••••' : 'No PIN';
+  const roleClass = `role-${String(user.role || 'none').toLowerCase()}`;
 
   if (!isEditing) {
     return `
-      <div class="card" style="padding:14px 16px;">
-        <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
-          <div>
-            <strong>${user.name || 'Unnamed User'}</strong>
-            <span class="muted"> · ${user.role || 'no role'} · ${status}</span>
-            <span class="muted"> · PIN: ${pinPreview}</span>
-          </div>
+      <div class="user-row compact-user-row">
+        <div class="user-main-line">
+          <strong>${escapeHtml(user.name || 'Unnamed User')}</strong>
+          <span class="user-role-pill ${roleClass}">${roleLabel(user.role)}</span>
+          <span class="status-pill ${status === 'active' ? 'running' : 'blocked'}">${status === 'active' ? 'Active' : 'Inactive'}</span>
+          <span class="muted user-pin-preview">PIN: ${pinPreview}</span>
+        </div>
 
-          <div style="display:flex; gap:8px;">
-            <button data-edit="${user.id}" class="button">Edit</button>
-            <button data-delete="${user.id}" class="button">Delete</button>
-          </div>
+        <div class="user-row-actions">
+          <button data-edit-user="${user.id}" class="button">Edit</button>
+          <button data-delete-user="${user.id}" class="button danger-outline">Delete</button>
         </div>
       </div>
     `;
   }
 
   return `
-    <div class="card">
-      <strong>Edit User</strong>
-
-      <div class="grid-2" style="margin-top:12px;">
-        <input data-name="${user.id}" value="${user.name || ''}" placeholder="Name" />
-        <input data-pin="${user.id}" value="${user.pin || ''}" placeholder="PIN" />
-
-        <select data-role="${user.id}">
-          ${ROLES.map((role) => `
-            <option value="${role}" ${user.role === role ? 'selected' : ''}>${role}</option>
-          `).join('')}
-        </select>
-
-        <select data-status="${user.id}">
-          <option value="active" ${status === 'active' ? 'selected' : ''}>Active</option>
-          <option value="inactive" ${status === 'inactive' ? 'selected' : ''}>Inactive</option>
-        </select>
+    <div class="user-row user-edit-row">
+      <div class="section-header">
+        <div>
+          <h2>Edit ${escapeHtml(user.name || 'User')}</h2>
+          <div class="muted">User ID: ${escapeHtml(user.id)}</div>
+        </div>
       </div>
 
-      <div style="margin-top:12px; display:flex; gap:10px;">
-        <button data-save="${user.id}" class="button primary">Save</button>
+      <div class="user-edit-grid">
+        <label>
+          <span>Name</span>
+          <input data-user-name="${user.id}" value="${escapeAttr(user.name || '')}" placeholder="Name" />
+        </label>
+
+        <label>
+          <span>Role</span>
+          <select data-user-role="${user.id}">
+            ${ROLES.map((role) => `<option value="${role.value}" ${user.role === role.value ? 'selected' : ''}>${role.label}</option>`).join('')}
+          </select>
+        </label>
+
+        <label>
+          <span>PIN</span>
+          <input data-user-pin="${user.id}" value="${escapeAttr(user.pin || '')}" inputmode="numeric" placeholder="PIN" autocomplete="new-password" />
+        </label>
+
+        <label>
+          <span>Status</span>
+          <select data-user-status="${user.id}">
+            <option value="active" ${status === 'active' ? 'selected' : ''}>Active</option>
+            <option value="inactive" ${status === 'inactive' ? 'selected' : ''}>Inactive</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="user-edit-actions">
+        <button data-save-user="${user.id}" class="button primary">Save Changes</button>
         <button data-cancel-edit class="button">Cancel</button>
-        <button data-delete="${user.id}" class="button">Delete</button>
+        <button data-delete-user="${user.id}" class="button danger-outline">Delete User</button>
       </div>
     </div>
   `;
@@ -119,42 +230,69 @@ function renderUserRow(user) {
 
 function wireEvents() {
   root.querySelector('#addUserBtn')?.addEventListener('click', handleAddUser);
+  root.querySelector('#refreshUsersBtn')?.addEventListener('click', loadAndRender);
 
-  root.querySelectorAll('[data-edit]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      editingUserId = btn.dataset.edit;
+  root.querySelector('#userSearchInput')?.addEventListener('input', (event) => {
+    searchText = event.target.value;
+    editingUserId = null;
+    render();
+  });
+
+  root.querySelector('#userRoleFilter')?.addEventListener('change', (event) => {
+    roleFilter = event.target.value;
+    editingUserId = null;
+    render();
+  });
+
+  root.querySelectorAll('[data-edit-user]').forEach((button) => {
+    button.addEventListener('click', () => {
+      editingUserId = button.dataset.editUser;
       render();
     });
   });
 
-  root.querySelectorAll('[data-cancel-edit]').forEach((btn) => {
-    btn.addEventListener('click', () => {
+  root.querySelectorAll('[data-cancel-edit]').forEach((button) => {
+    button.addEventListener('click', () => {
       editingUserId = null;
       render();
     });
   });
 
-  root.querySelectorAll('[data-save]').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      await handleSaveUser(btn.dataset.save);
+  root.querySelectorAll('[data-save-user]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      await handleSaveUser(button.dataset.saveUser);
     });
   });
 
-  root.querySelectorAll('[data-delete]').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      await handleDeleteUser(btn.dataset.delete);
+  root.querySelectorAll('[data-delete-user]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      await handleDeleteUser(button.dataset.deleteUser);
     });
   });
 }
 
 async function handleAddUser() {
-  const name = root.querySelector('#newName')?.value.trim();
-  const pin = root.querySelector('#newPin')?.value.trim();
-  const role = root.querySelector('#newRole')?.value;
-  const status = root.querySelector('#newStatus')?.value;
+  const nameInput = root.querySelector('#newUserName');
+  const pinInput = root.querySelector('#newUserPin');
+  const roleInput = root.querySelector('#newUserRole');
+  const statusInput = root.querySelector('#newUserStatus');
 
-  if (!name) return alert('Name required.');
-  if (!pin) return alert('PIN required.');
+  const name = nameInput?.value.trim() || '';
+  const pin = pinInput?.value.trim() || '';
+  const role = roleInput?.value || 'dieSetter';
+  const status = statusInput?.value || 'active';
+
+  if (!name) {
+    alert('Name is required.');
+    nameInput?.focus();
+    return;
+  }
+
+  if (role === 'dieSetter' && !pin) {
+    alert('PIN is required for die setters.');
+    pinInput?.focus();
+    return;
+  }
 
   try {
     await addDoc(collection(db, 'users'), {
@@ -166,7 +304,9 @@ async function handleAddUser() {
       updatedAt: new Date().toISOString()
     });
 
-    await addAdminLog(`Created user ${name} as ${role}`);
+    await addAdminLog(`Created user ${name} as ${roleLabel(role)}`);
+    searchText = '';
+    roleFilter = 'all';
     await loadAndRender();
   } catch (error) {
     console.error('❌ Add user failed:', error);
@@ -175,13 +315,27 @@ async function handleAddUser() {
 }
 
 async function handleSaveUser(userId) {
-  const name = root.querySelector(`[data-name="${userId}"]`)?.value.trim();
-  const pin = root.querySelector(`[data-pin="${userId}"]`)?.value.trim();
-  const role = root.querySelector(`[data-role="${userId}"]`)?.value;
-  const status = root.querySelector(`[data-status="${userId}"]`)?.value;
+  const nameInput = root.querySelector(`[data-user-name="${userId}"]`);
+  const pinInput = root.querySelector(`[data-user-pin="${userId}"]`);
+  const roleInput = root.querySelector(`[data-user-role="${userId}"]`);
+  const statusInput = root.querySelector(`[data-user-status="${userId}"]`);
 
-  if (!name) return alert('Name required.');
-  if (!pin) return alert('PIN required.');
+  const name = nameInput?.value.trim() || '';
+  const pin = pinInput?.value.trim() || '';
+  const role = roleInput?.value || 'dieSetter';
+  const status = statusInput?.value || 'active';
+
+  if (!name) {
+    alert('Name is required.');
+    nameInput?.focus();
+    return;
+  }
+
+  if (role === 'dieSetter' && !pin) {
+    alert('PIN is required for die setters.');
+    pinInput?.focus();
+    return;
+  }
 
   try {
     await updateUserInFirestore(userId, {
@@ -191,6 +345,7 @@ async function handleSaveUser(userId) {
       status
     });
 
+    handleLiveSessionUpdate(userId, { name, pin, role, status });
     await addAdminLog(`Updated user ${name}`);
     editingUserId = null;
     await loadAndRender();
@@ -203,8 +358,14 @@ async function handleSaveUser(userId) {
 async function handleDeleteUser(userId) {
   const user = users.find((item) => item.id === userId);
   const name = user?.name || userId;
+  const current = getSession() || getStoredSessionUser();
 
-  if (!confirm(`Delete user "${name}"?`)) return;
+  if (current?.id === userId) {
+    alert('You cannot delete the currently selected session user. Switch to another admin first.');
+    return;
+  }
+
+  if (!confirm(`Delete user "${name}"?\n\nThis cannot be undone.`)) return;
 
   try {
     await deleteDoc(doc(db, 'users', userId));
@@ -215,4 +376,26 @@ async function handleDeleteUser(userId) {
     console.error('❌ Delete user failed:', error);
     alert('Delete failed.');
   }
+}
+
+function handleLiveSessionUpdate(userId, updates) {
+  const current = getSession() || getStoredSessionUser();
+  if (!current || current.id !== userId) return;
+
+  const updatedUser = { ...current, ...updates };
+  setSession(updatedUser);
+  setStoredSessionUser(updatedUser);
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+}
+
+function escapeAttr(value) {
+  return escapeHtml(value);
 }
