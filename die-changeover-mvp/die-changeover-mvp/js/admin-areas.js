@@ -59,74 +59,84 @@ function renderAreaCards() {
   }
 
   return areas.map((area) => {
-    const unassignedPresses = presses.filter((press) => !press.areaId);
-    const areaPresses = presses.filter((press) => press.areaId === area.id);
+  const unassignedPresses = presses.filter((press) => !press.areaId);
+  const areaPresses = presses.filter((press) => press.areaId === area.id);
 
-    return `
-      <div class="card">
-        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
-          <div>
-            <strong style="color:${area.color || '#3b82f6'}">${area.name}</strong>
-            <div class="muted">Order: ${area.order || 0}</div>
-          </div>
-          <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-            <div style="display:flex; align-items:center; gap:8px;">
-  <span class="muted">Color:</span>
-  <input type="color" data-area-color="${area.id}" value="${area.color || '#3b82f6'}" style="width:36px; height:36px; border:none; padding:0;" />
-  <div style="
-    width:20px;
-    height:20px;
-    border-radius:4px;
-    background:${area.color || '#3b82f6'};
-    border:1px solid #ccc;
-  "></div>
-</div>
-<button class="button" data-save-area-color="${area.id}">Save</button>
-            <button class="button" data-rename-area="${area.id}">Rename</button>
-            <button class="button" data-delete-area="${area.id}">Delete</button>
-          </div>
+  return `
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
+        
+        <div>
+          <strong style="color:${area.color || '#3b82f6'}">${area.name}</strong>
+          <div class="muted">Order: ${area.order || 0}</div>
         </div>
 
-        <div style="margin-top:14px;">
-          <label class="muted">Assign equipment to ${area.name}</label>
-          <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:6px;">
-            <select data-area-assign="${area.id}">
-              <option value="">Select equipment</option>
-              ${unassignedPresses.map((press) => `<option value="${press.id}">${equipmentLabel(press)}</option>`).join('')}
-            </select>
-            <button class="button" data-area-assign-btn="${area.id}">Assign Equipment</button>
-          </div>
+        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+          <span class="muted">Color:</span>
+
+          <input
+            type="color"
+            data-area-color="${area.id}"
+            value="${area.color || '#3b82f6'}"
+            style="width:36px; height:36px; border:none; padding:0; background:transparent;"
+          />
+
+          <button class="button" data-save-area-color="${area.id}">Save</button>
+          <button class="button" data-rename-area="${area.id}">Rename</button>
+          <button class="button" data-delete-area="${area.id}">Delete</button>
         </div>
 
-        <div style="margin-top:14px; display:grid; gap:10px;">
-          ${areaPresses.length
-            ? areaPresses.map((press) => `
-                <div style="
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  gap:12px;
-  flex-wrap:wrap;
-  padding:12px 14px;
-  border:1px solid #e5e7eb;
-  border-left:6px solid ${area.color || '#3b82f6'};
-  border-radius:12px;
-  background:#ffffff;
-">
-                  <div>
-                    <strong>${equipmentLabel(press)}</strong>
-                    <div class="muted">Area: ${area.name}</div>
-                  </div>
-                  <button class="button" data-remove-press="${press.id}">Remove</button>
-                </div>
-              `).join('')
-            : `<div class="muted">No equipment assigned yet.</div>`
-          }
+      </div>
+
+      <div style="margin-top:14px;">
+        <label class="muted">Assign equipment to ${area.name}</label>
+        <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:6px;">
+          <select data-area-assign="${area.id}">
+            <option value="">Select equipment</option>
+            ${unassignedPresses.map((press) => `
+              <option value="${press.id}">${equipmentLabel(press)}</option>
+            `).join('')}
+          </select>
+
+          <button class="button" data-area-assign-btn="${area.id}">
+            Assign Equipment
+          </button>
         </div>
       </div>
-    `;
-  }).join('');
-}
+
+      <div style="margin-top:14px; display:grid; gap:10px;">
+        ${
+          areaPresses.length
+            ? areaPresses.map((press) => `
+              <div style="
+                display:flex;
+                justify-content:space-between;
+                align-items:center;
+                gap:12px;
+                flex-wrap:wrap;
+                padding:12px 14px;
+                border:1px solid #e5e7eb;
+                border-left:6px solid ${area.color || '#3b82f6'};
+                border-radius:12px;
+                background:#ffffff;
+              ">
+                <div>
+                  <strong>${equipmentLabel(press)}</strong>
+                  <div class="muted">Area: ${area.name}</div>
+                </div>
+
+                <button class="button" data-remove-press="${press.id}">
+                  Remove
+                </button>
+              </div>
+            `).join('')
+            : `<div class="muted">No equipment assigned yet.</div>`
+        }
+      </div>
+
+    </div>
+  `;
+}).join('');
 
 function wireAreaButtons() {
   root.querySelectorAll('[data-area-assign-btn]').forEach((btn) => {
