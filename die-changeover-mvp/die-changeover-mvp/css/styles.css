@@ -1539,34 +1539,3 @@ input, textarea, select {
 }
 
 
-/* Admin Equipment polish */
-#adminContent > div {
-  max-width: 820px;
-}
-
-.admin-table-card {
-  overflow: hidden;
-}
-
-.admin-table-wrap {
-  width: 100%;
-  overflow-x: visible;
-}
-
-.admin-table {
-  width: 100%;
-  min-width: 0;
-  table-layout: fixed;
-}
-
-.admin-table th,
-.admin-table td {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.admin-row-actions,
-.admin-table td div {
-  max-width: 100%;
-}
