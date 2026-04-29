@@ -70,8 +70,18 @@ function renderAreaCards() {
             <div class="muted">Order: ${area.order || 0}</div>
           </div>
           <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-            <input type="color" data-area-color="${area.id}" value="${area.color || '#3b82f6'}" />
-            <button class="button" data-save-area-color="${area.id}">Save Color</button>
+            <div style="display:flex; align-items:center; gap:8px;">
+  <span class="muted">Color:</span>
+  <input type="color" data-area-color="${area.id}" value="${area.color || '#3b82f6'}" style="width:36px; height:36px; border:none; padding:0;" />
+  <div style="
+    width:20px;
+    height:20px;
+    border-radius:4px;
+    background:${area.color || '#3b82f6'};
+    border:1px solid #ccc;
+  "></div>
+</div>
+<button class="button" data-save-area-color="${area.id}">Save</button>
             <button class="button" data-rename-area="${area.id}">Rename</button>
             <button class="button" data-delete-area="${area.id}">Delete</button>
           </div>
@@ -88,13 +98,24 @@ function renderAreaCards() {
           </div>
         </div>
 
-        <div style="margin-top:14px; display:grid; gap:8px;">
+        <div style="margin-top:14px; display:grid; gap:10px;">
           ${areaPresses.length
             ? areaPresses.map((press) => `
-                <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; padding:10px 12px; border-left:6px solid ${area.color || '#3b82f6'}; border-radius:12px;">
+                <div style="
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+  flex-wrap:wrap;
+  padding:12px 14px;
+  border:1px solid #e5e7eb;
+  border-left:6px solid ${area.color || '#3b82f6'};
+  border-radius:12px;
+  background:#ffffff;
+">
                   <div>
                     <strong>${equipmentLabel(press)}</strong>
-                    <div class="muted">${area.name}</div>
+                    <div class="muted">Area: ${area.name}</div>
                   </div>
                   <button class="button" data-remove-press="${press.id}">Remove</button>
                 </div>
