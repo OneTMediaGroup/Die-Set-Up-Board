@@ -50,15 +50,20 @@ function render() {
           </select>
         </label>
 
-        <label>
-          <span>Brand Text</span>
-          <input id="brandText" value="${escapeAttr(settings.brandText || 'MAGNA')}" placeholder="MAGNA" />
-        </label>
+        <div id="textModeBlock" style="${settings.brandingMode === 'text' ? '' : 'display:none;'}">
+  <label>
+    <span>Brand Text</span>
+    <input id="brandText" value="${escapeAttr(settings.brandText)}" />
+  </label>
+</div>
 
-        <label>
-          <span>Logo Image URL</span>
-          <input id="logoUrl" value="${escapeAttr(settings.logoUrl || '')}" placeholder="https://example.com/logo.png" />
-        </label>
+<div id="logoModeBlock" style="${settings.brandingMode === 'logo' ? '' : 'display:none;'}">
+  <label>
+    <span>Logo Image URL</span>
+    <input id="logoUrl" value="${escapeAttr(settings.logoUrl)}" placeholder="https://..." />
+  </label>
+</div>
+        
 
         <div class="card" style="padding:14px;">
           <strong>Preview</strong>
@@ -79,7 +84,15 @@ function render() {
 }
 
 function wireEvents() {
-  root.querySelector('#brandingMode')?.addEventListener('change', renderPreview);
+  root.querySelector('#brandingMode')?.addEventListener('change', () => {
+    const mode = root.querySelector('#brandingMode')?.value || 'text';
+
+    root.querySelector('#textModeBlock').style.display = mode === 'text' ? '' : 'none';
+    root.querySelector('#logoModeBlock').style.display = mode === 'logo' ? '' : 'none';
+
+    renderPreview();
+  });
+
   root.querySelector('#brandText')?.addEventListener('input', renderPreview);
   root.querySelector('#logoUrl')?.addEventListener('input', renderPreview);
   root.querySelector('#saveSystemSettingsBtn')?.addEventListener('click', saveSettings);
