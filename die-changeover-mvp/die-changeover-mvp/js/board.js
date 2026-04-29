@@ -470,13 +470,13 @@ function renderSlot(press, slot, slotIndex) {
             ? `<button class="button success full" data-complete-shift data-press-id="${press.id}" data-slot-index="${slotIndex}">Complete + Shift</button>`
             : ''
         }
-        ${
-          canAct
-            ? `<button class="button primary full" data-open-setup data-press-id="${press.id}" data-slot-index="${slotIndex}">
-                ${empty ? 'View Notes' : 'Open Actions'}
-              </button>`
-            : ''
-        }
+${
+  empty
+    ? `<button class="button primary full" data-open-setup data-press-id="${press.id}" data-slot-index="${slotIndex}">
+        View Notes
+      </button>`
+    : ''
+}
       </div>
 
       <div class="muted">Updated ${formatTime(slot.updatedAt)}</div>
