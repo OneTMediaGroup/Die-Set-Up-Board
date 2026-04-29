@@ -2,7 +2,7 @@ import { initStore, getSession, setSession } from './store.js';
 import { fetchUsersFromFirestore } from './firestore-users.js';
 import { getStoredSessionUser, setStoredSessionUser } from './session-user.js';
 import { mountUserSwitcher } from './user-switcher.js';
-import { mountDailySetupTool } from './supervisor-daily.js';
+
 import { mountQueueTool } from './supervisor-queue.js';
 import { mountAreaViewTool } from './supervisor-areas.js';
 import { mountSupervisorActivityTool } from './supervisor-activity.js';
@@ -30,7 +30,7 @@ async function init() {
     button.addEventListener('click', () => selectTool(button.dataset.supervisorTool));
   });
 
-  await selectTool('daily');
+  await selectTool('queue');
 }
 
 async function bootstrapSession() {
@@ -85,8 +85,7 @@ async function selectTool(toolName) {
 
   supervisorContent.innerHTML = `<div class="admin-loading">Loading...</div>`;
 
-  if (toolName === 'daily') cleanupCurrentTool = await mountDailySetupTool(supervisorContent);
-  else if (toolName === 'queue') cleanupCurrentTool = await mountQueueTool(supervisorContent);
+  if (toolName === 'queue') cleanupCurrentTool = await mountQueueTool(supervisorContent);
   else if (toolName === 'areas') cleanupCurrentTool = await mountAreaViewTool(supervisorContent);
   else if (toolName === 'activity') cleanupCurrentTool = await mountSupervisorActivityTool(supervisorContent);
   else supervisorContent.innerHTML = `<div class="admin-card"><div class="muted">Unknown supervisor tool.</div></div>`;
