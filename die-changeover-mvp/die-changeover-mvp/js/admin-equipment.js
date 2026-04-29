@@ -57,23 +57,27 @@ function render() {
       </div>
 
       <div class="admin-card admin-table-card" style="margin-top:16px;">
-        <div style="display:flex; justify-content:space-between; align-items:flex-end; gap:12px; flex-wrap:wrap;">
-          <div>
-            <h2>All Equipment</h2>
-            <div id="equipmentCountText" class="muted">${filtered.length} shown · ${presses.length} total</div>
-          </div>
-          <input id="equipmentSearch" value="${searchText}" placeholder="Search..." style="width:260px; max-width:100%;" />
+        <h2>All Equipment</h2>
+        <div id="equipmentCountText" class="muted" style="margin-bottom:12px;">
+          ${filtered.length} shown · ${presses.length} total
         </div>
 
-        <div class="admin-table-wrap" style="margin-top:12px;">
+        <input
+          id="equipmentSearch"
+          value="${searchText}"
+          placeholder="Search..."
+          style="width:100%; margin-bottom:14px;"
+        />
+
+        <div class="admin-table-wrap">
           <table class="admin-table" style="width:100%; table-layout:fixed;">
             <thead>
               <tr>
                 <th style="width:45px;">#</th>
-                  <th>Equipment</th>
-                   <th style="width:130px;">Area</th>
-                     <th style="width:70px;">Setups</th>
-                    <th style="width:210px;">Actions</th>
+                <th>Equipment</th>
+                <th style="width:130px;">Area</th>
+                <th style="width:70px;">Setups</th>
+                <th style="width:210px;">Actions</th>
               </tr>
             </thead>
             <tbody id="equipmentTableBody">
