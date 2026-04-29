@@ -17,7 +17,7 @@ async function applyBranding() {
     console.error('Branding load failed:', error);
   }
 
-  document.querySelectorAll('.brand-logo').forEach((el) => {
+  document.querySelectorAll('.brand-logo, .admin-brand, .display-brand').forEach((el) => {
     if (settings.brandingMode === 'logo' && settings.logoUrl) {
       el.innerHTML = `
         <img
