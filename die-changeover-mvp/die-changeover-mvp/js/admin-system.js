@@ -63,6 +63,11 @@ function render() {
     <input type="file" id="logoFileInput" accept="image/*" />
   </label>
 
+<div class="muted" style="margin-top:4px;">
+  Recommended: wide logo (2:1 or 3:1), ~300×100px for best fit.
+</div>
+
+
   <div class="muted">Or paste a URL</div>
 
   <input id="logoUrl" value="${escapeAttr(settings.logoUrl)}" placeholder="https://..." />
@@ -136,12 +141,14 @@ function wireEvents() {
       renderPreview();
 
       alert('Logo uploaded successfully.');
+
+      
     } catch (error) {
       console.error('❌ Logo upload failed:', error);
       alert('Logo upload failed.');
     }
   });
-
+root.querySelector('#brandingMode').value = 'logo';
   root.querySelector('#brandText')?.addEventListener('input', renderPreview);
   root.querySelector('#logoUrl')?.addEventListener('input', renderPreview);
   root.querySelector('#saveSystemSettingsBtn')?.addEventListener('click', saveSettings);
@@ -172,7 +179,7 @@ async function saveSettings() {
       ...settings,
       brandingMode,
       brandText,
-      logoUrl: logoInputValue || settings.logoUrl || '',
+      logoUrl: logoInputValue ? logoInputValue : settings.logoUrl,
       updatedAt: new Date().toISOString()
     };
 
