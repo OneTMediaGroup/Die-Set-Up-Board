@@ -170,9 +170,17 @@ function render(livePresses) {
 
 function wireQueueClicks(filteredPresses) {
   root.querySelector('#queueSearchInput')?.addEventListener('input', (event) => {
-    searchText = event.target.value;
-    render(presses);
-  });
+  searchText = event.target.value;
+  const cursorPosition = event.target.selectionStart || searchText.length;
+
+  render(presses);
+
+  const input = root.querySelector('#queueSearchInput');
+  if (input) {
+    input.focus();
+    input.setSelectionRange(cursorPosition, cursorPosition);
+  }
+});
 
   root.querySelector('#queueAreaFilter')?.addEventListener('change', (event) => {
     areaFilter = event.target.value;
