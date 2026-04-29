@@ -111,7 +111,7 @@ async function uploadToCloudinary(file) {
 
 
 
-function function wireEvents() {
+function wireEvents() {
   root.querySelector('#brandingMode')?.addEventListener('change', () => {
     const mode = root.querySelector('#brandingMode')?.value || 'text';
 
