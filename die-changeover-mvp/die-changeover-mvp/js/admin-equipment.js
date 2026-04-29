@@ -42,7 +42,7 @@ function render() {
   const filtered = getFilteredPresses();
 
   root.innerHTML = `
-    <div style="max-width:980px;">
+    <div style="max-width:820px; width:100%;">
       <div class="admin-content-header">
         <h2>Equipment</h2>
         <p class="muted">Create, search, edit, reset, and delete equipment.</p>
@@ -66,14 +66,14 @@ function render() {
         </div>
 
         <div class="admin-table-wrap" style="margin-top:12px;">
-          <table class="admin-table">
+          <table class="admin-table" style="width:100%; table-layout:fixed;">
             <thead>
               <tr>
-                <th style="width:60px;">#</th>
-                <th>Equipment</th>
-                <th style="width:180px;">Area</th>
-                <th style="width:90px;">Setups</th>
-                <th style="width:260px;">Actions</th>
+                <th style="width:45px;">#</th>
+<th>Equipment</th>
+<th style="width:130px;">Area</th>
+<th style="width:70px;">Setups</th>
+<th style="width:210px;">Actions</th>
               </tr>
             </thead>
             <tbody id="equipmentTableBody">
