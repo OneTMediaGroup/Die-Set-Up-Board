@@ -1538,4 +1538,8 @@ input, textarea, select {
   }
 }
 
-
+.status-pill.ready,
+.status-pill.success {
+  color: #111 !important;
+  font-weight: 800;
+}

@@ -104,7 +104,7 @@ export function renderSlotCard(press, slot, slotIndex, selected = false, options
           </label>
           <div class="inline-slot-actions">
             <button type="button" class="button primary" data-save-slot="${press.id}" data-slot-index="${slotIndex}">Save</button>
-            ${slotIndex === 0 && !empty && displayStatus !== 'ready' ? `<button type="button" class="button success" data-ready-slot="${press.id}" data-slot-index="${slotIndex}">Ready</button>` : ''}
+            
             ${!empty ? `<button type="button" class="button" data-clear-slot="${press.id}" data-slot-index="${slotIndex}">Clear</button>` : ''}
           </div>
         </div>
