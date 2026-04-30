@@ -71,10 +71,8 @@ function ensureLoginModal() {
         <h3>Complete + Shift</h3>
         <p class="muted" style="margin-bottom:14px;">Confirm who completed this changeover.</p>
 
-        <label class="muted">Employee ID</label>
-<input id="dieSetterLoginId" type="number" inputmode="numeric" placeholder="Enter ID" style="margin-top:6px; width:100%;" />
-
-<div id="dieSetterLoginName" class="muted" style="margin-top:8px;"></div>
+        <label class="muted">User</label>
+        <select id="dieSetterLoginUser" style="margin-top:6px; width:100%;"></select>
 
         <label class="muted" style="margin-top:12px; display:block;">PIN</label>
         <input id="dieSetterLoginPin" type="password" inputmode="numeric" placeholder="Enter PIN" style="margin-top:6px; width:100%;" />
@@ -150,7 +148,8 @@ function showLoginError(message) {
 async function confirmDieSetterLogin() {
   if (!pendingComplete) return;
 
-  const enteredId = document.getElementById('dieSetterLoginId')?.value.trim();
+  const userId = document.getElementById('dieSetterLoginUser')?.value || '';
+const user = dieSetters.find((item) => item.id === userId);
   const pinInput = document.getElementById('dieSetterLoginPin');
   const pin = pinInput?.value.trim() || '';
   const confirmBtn = document.getElementById('dieSetterLoginConfirm');
@@ -198,6 +197,42 @@ async function confirmDieSetterLogin() {
     }
   }
 }
+
+
+function ensureReadyModal() {
+  if (document.getElementById('readyLoginModal')) return;
+
+  document.body.insertAdjacentHTML('beforeend', `
+    <div id="readyLoginModal" class="modal hidden">
+      <div class="modal-content">
+        <h3>Ready for Changeover</h3>
+        <p class="muted" style="margin-bottom:14px;">Enter Employee ID.</p>
+
+        <input id="readyEmployeeId" type="number" placeholder="Enter ID" style="width:100%;" />
+        <div id="readyEmployeeName" class="muted" style="margin-top:8px;"></div>
+
+        <div class="modal-actions">
+          <button id="readyCancel" class="button">Cancel</button>
+          <button id="readyConfirm" class="button primary">Confirm Ready</button>
+        </div>
+      </div>
+    </div>
+  `);
+
+  document.getElementById('readyCancel').onclick = () => {
+    document.getElementById('readyLoginModal').classList.add('hidden');
+  };
+
+  document.getElementById('readyEmployeeId').addEventListener('input', (e) => {
+    const val = e.target.value;
+    const user = dieSetters.find(u => String(u.employeeId) === val);
+
+    document.getElementById('readyEmployeeName').textContent =
+      user ? `Confirm: ${user.name}` : '';
+  });
+}
+
+
 
 async function bootstrapSession() {
   const storedUser = getStoredSessionUser();
@@ -489,43 +524,48 @@ function renderSlot(press, slot, slotIndex) {
 }
 
 async function handleReadyForChangeover(pressId, slotIndex) {
-  const press = presses.find((item) => item.id === pressId);
-  if (!press || press.isLocked) {
-    alert('This press is locked by Admin.');
-    return;
-  }
+  ensureReadyModal();
 
-  const slot = getSlotsArray(press)[slotIndex];
-  if (!slot || !slot.partNumber) return;
-  if (normalizedSlotStatus(slot.status, slotIndex, true) === 'ready') return;
+  const modal = document.getElementById('readyLoginModal');
+  const input = document.getElementById('readyEmployeeId');
+  const confirmBtn = document.getElementById('readyConfirm');
 
-  if (!window.confirm(`Mark ${press.equipmentName || `Press ${press.pressNumber}`} Slot ${slotIndex + 1} as READY FOR CHANGEOVER?`)) {
-    return;
-  }
+  modal.classList.remove('hidden');
+  input.value = '';
+  document.getElementById('readyEmployeeName').textContent = '';
 
-  try {
-    await updateSetupInFirestore({
-      pressId,
-      slotIndex,
-      userName: getActionUserName(),
-      setup: {
-        partNumber: slot.partNumber,
-        qtyRemaining: slot.qtyRemaining,
-        status: 'ready',
-        notes: slot.notes || '',
-        previousSetup: slot,
-        expectedUpdatedAt: slot.updatedAt || null
-      }
-    });
-  } catch (error) {
-    if (error?.code === 'slot-conflict') {
-      alert(`This slot was updated by ${error.lastUpdatedBy || 'another user'} before marking ready.\n\nPlease review the latest data and try again.`);
+  confirmBtn.onclick = async () => {
+    const enteredId = input.value.trim();
+    const user = dieSetters.find(u => String(u.employeeId) === enteredId);
+
+    if (!user) {
+      alert('Invalid Employee ID');
       return;
     }
 
-    console.error('❌ Ready for changeover failed:', error);
-    alert('Ready for Changeover failed. Please try again.');
-  }
+    const press = presses.find(p => p.id === pressId);
+    const slot = getSlotsArray(press)[slotIndex];
+
+    try {
+      await updateSetupInFirestore({
+        pressId,
+        slotIndex,
+        userName: user.name,
+        setup: {
+          partNumber: slot.partNumber,
+          qtyRemaining: slot.qtyRemaining,
+          status: 'ready',
+          notes: slot.notes || '',
+          previousSetup: slot,
+          expectedUpdatedAt: slot.updatedAt || null
+        }
+      });
+
+      modal.classList.add('hidden');
+    } catch (error) {
+      alert('Failed to mark ready');
+    }
+  };
 }
 
 function openSetup(pressId, slotIndex) {
