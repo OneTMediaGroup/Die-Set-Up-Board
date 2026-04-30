@@ -1553,3 +1553,103 @@ input, textarea, select {
 .slot-card:not(:first-child) {
   opacity: 0.92;
 }
+
+/* ============================= */
+/* DISPLAY BOARD FINAL POLISH */
+/* ============================= */
+
+.display-board-scroll-area {
+  height: calc(100vh - 92px);
+  padding: 16px 24px 40px;
+}
+
+.display-board-content {
+  gap: 16px;
+}
+
+.display-area-section {
+  border-radius: 18px;
+  overflow: hidden;
+}
+
+.display-area-header {
+  padding: 14px 20px;
+  border-left: 8px solid var(--area-color) !important;
+}
+
+.display-area-header h2 {
+  font-size: 1.38rem;
+  margin: 0;
+}
+
+.display-area-header p {
+  font-size: .88rem;
+  margin-top: 3px;
+}
+
+.display-area-chip {
+  padding: 6px 12px;
+  font-size: .82rem;
+}
+
+.display-equipment-row {
+  padding: 14px 18px 16px;
+  gap: 10px;
+  border-left: 8px solid var(--area-color) !important;
+}
+
+.display-equipment-summary {
+  grid-template-columns: minmax(220px, 1fr) auto auto;
+  gap: 12px;
+}
+
+.display-equipment-title strong {
+  font-size: 1.28rem;
+}
+
+.display-equipment-title span,
+.display-active-count {
+  font-size: .84rem;
+}
+
+.display-equipment-summary > .status-pill {
+  min-width: 128px;
+  font-size: .78rem;
+  padding: 7px 10px;
+}
+
+.display-slot-strip {
+  grid-template-columns: repeat(2, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.display-slot-card {
+  min-height: 96px;
+  padding: 10px 12px;
+  gap: 6px;
+  border-radius: 12px;
+}
+
+.display-slot-topline strong {
+  font-size: .86rem;
+}
+
+.display-slot-card .status-pill {
+  min-width: auto;
+  font-size: .68rem;
+  padding: 5px 7px;
+}
+
+.display-slot-main span,
+.display-slot-bottom {
+  font-size: .78rem;
+}
+
+.display-slot-main strong {
+  font-size: 1.02rem;
+}
+
+.display-ready-banner {
+  padding: 5px 6px;
+  font-size: .72rem;
+}
