@@ -1704,3 +1704,30 @@ input, textarea, select {
 .display-slot-strip.compact-tv .display-slot-card {
   min-height: 115px;
 }
+
+/* Display Board Footer */
+.display-footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  padding: 6px 12px;
+
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+
+  color: rgba(15, 23, 42, 0.5);
+
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(6px);
+
+  border-top: 1px solid rgba(0,0,0,0.05);
+
+  z-index: 10;
+}
