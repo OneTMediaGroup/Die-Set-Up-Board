@@ -37,7 +37,7 @@ async function loadDieSetters() {
 
     dieSetters = users.filter((user) => {
       const active = user.status === 'active' || user.isActive === true;
-      return ['dieSetter', 'supervisor', 'admin'].includes(user.role) && active && user.pin;
+      return ['operator', 'dieSetter', 'supervisor', 'admin'].includes(user.role) && active;
     });
 
     renderDieSetterOptions();
@@ -91,15 +91,7 @@ function ensureLoginModal() {
 function wireLoginModal() {
   document.getElementById('dieSetterLoginCancel')?.addEventListener('click', closeDieSetterLogin);
   document.getElementById('dieSetterLoginConfirm')?.addEventListener('click', confirmDieSetterLogin);
-document.getElementById('dieSetterLoginId')?.addEventListener('input', (e) => {
-  const val = e.target.value;
-  const user = dieSetters.find(u => String(u.employeeId) === val);
 
-  const label = document.getElementById('dieSetterLoginName');
-  if (!label) return;
-
-  label.textContent = user ? `Confirm: ${user.name}` : '';
-});
   document.getElementById('dieSetterLoginPin')?.addEventListener('keydown', async (event) => {
     if (event.key === 'Enter') await confirmDieSetterLogin();
   });
@@ -149,11 +141,10 @@ async function confirmDieSetterLogin() {
   if (!pendingComplete) return;
 
   const userId = document.getElementById('dieSetterLoginUser')?.value || '';
-const user = dieSetters.find((item) => item.id === userId);
   const pinInput = document.getElementById('dieSetterLoginPin');
   const pin = pinInput?.value.trim() || '';
   const confirmBtn = document.getElementById('dieSetterLoginConfirm');
-  const user = dieSetters.find((item) => String(item.employeeId) === enteredId);
+  const user = dieSetters.find((item) => item.id === userId);
 
   if (!user) {
     showLoginError('Select a user.');
@@ -197,7 +188,6 @@ const user = dieSetters.find((item) => item.id === userId);
     }
   }
 }
-
 
 function ensureReadyModal() {
   if (document.getElementById('readyLoginModal')) return;
