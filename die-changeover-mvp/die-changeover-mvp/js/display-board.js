@@ -140,6 +140,12 @@ function sortDisplayPresses(a, b) {
 function displayPriority(press) {
   const slots = getSlotsArray(press);
 
+const slot1Ready = slots[0]?.partNumber &&
+  normalizedSlotStatus(slots[0].status, 0, true) === 'ready';
+
+if (slot1Ready) return 0;
+
+
   const hasReady = slots.some((slot, index) =>
     slot.partNumber && normalizedSlotStatus(slot.status, index, true) === 'ready'
   );
