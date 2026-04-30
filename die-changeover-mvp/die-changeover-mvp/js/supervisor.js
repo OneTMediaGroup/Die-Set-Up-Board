@@ -1,3 +1,7 @@
+import { requireRoleAccess } from './auth-lock.js';
+
+await requireRoleAccess(['supervisor', 'admin']);
+
 import { initStore, getSession, setSession } from './store.js';
 import { fetchUsersFromFirestore } from './firestore-users.js';
 import { getStoredSessionUser, setStoredSessionUser } from './session-user.js';

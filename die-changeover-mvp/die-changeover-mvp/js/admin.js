@@ -1,3 +1,8 @@
+import { requireRoleAccess } from './auth-lock.js';
+
+await requireRoleAccess(['admin']);
+
+
 import { mountUserSwitcher } from './user-switcher.js';
 import { getSession } from './store.js';
 import { getStoredSessionUser } from './session-user.js';

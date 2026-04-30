@@ -38,7 +38,7 @@ async function loadDieSetters() {
 
     dieSetters = users.filter((user) => {
       const active = user.status === 'active' || user.isActive === true;
-      return user.role === 'dieSetter' && active && user.pin;
+      return ['dieSetter', 'supervisor', 'admin'].includes(user.role) && active && user.pin;
     });
 
     renderDieSetterOptions();
