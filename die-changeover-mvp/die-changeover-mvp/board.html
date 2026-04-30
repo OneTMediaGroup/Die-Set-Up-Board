@@ -6,61 +6,62 @@
   <title>Die Setter Board</title>
   <link rel="stylesheet" href="css/styles.css" />
 </head>
-<body>
-  <div class="app-shell">
-    <aside class="sidebar">
-      <div class="brand-logo large">MAGNA</div>
-      <nav>
-        <a class="nav-link active" href="board.html">Die Setter Board</a>
-        <a class="nav-link" href="supervisor.html">Supervisor</a>
-        <a class="nav-link" href="admin.html">Admin / Maintenance</a>
-        <a class="nav-link" href="index.html">Home</a>
-      </nav>
-      <div class="sidebar-footer">
-  <div id="currentUserBoard" class="user-pill">Loading...</div>
-  <select id="userSwitcher" class="select" style="margin-top:10px;">
-    <option>Loading users...</option>
-  </select>
-</div>
-    </aside>
 
-    <main class="main-content">
-      <header class="topbar">
+<body class="display-board-body">
+  <div class="display-board-shell">
+
+    <header class="display-board-header">
+      <div class="display-brand-wrap">
+        <div class="brand-logo display-brand">MAGNA</div>
         <div>
           <h1>Die Changeover Board</h1>
-          <p class="muted">Touchscreen floor view for die setters</p>
+          <p>Touchscreen floor view for die setters</p>
         </div>
-        <div class="topbar-right">
-          <div class="header-stat"><span>Shift</span><strong>1</strong></div>
-          <div class="header-stat"><span>Last Sync</span><strong id="syncTimeBoard">--</strong></div>
-        </div>
-      </header>
+      </div>
 
-      <section class="toolbar card compact">
-        <div class="toolbar-row">
-          <label>
-            Area
-            <select id="areaFilterBoard">
-              <option value="all">All</option>
-              <option value="Arcur 1">Arcur 1</option>
-              <option value="Arcur 2">Arcur 2</option>
-            </select>
-          </label>
-          <label>
-            Shift
-            <select id="shiftFilterBoard">
-              <option value="all">All</option>
-              <option value="1">Shift 1</option>
-              <option value="2">Shift 2</option>
-              <option value="3">Shift 3</option>
-            </select>
-          </label>
-          <button class="button" id="refreshBoardBtn">Refresh</button>
-        </div>
-      </section>
+      <div class="display-controls">
+        <label>
+          Area
+          <select id="areaFilterBoard">
+            <option value="all">All</option>
+          </select>
+        </label>
 
-      <section class="press-grid" id="pressGrid"></section>
+        <label>
+          Shift
+          <select id="shiftFilterBoard">
+            <option value="all">All</option>
+            <option value="1">Shift 1</option>
+            <option value="2">Shift 2</option>
+            <option value="3">Shift 3</option>
+          </select>
+        </label>
+
+        <button class="button" id="refreshBoardBtn">Refresh</button>
+
+        <div class="display-sync-card">
+          <span>Last Sync</span>
+          <strong id="syncTimeBoard">--</strong>
+        </div>
+
+        <div class="display-sync-card">
+          <span>User</span>
+          <strong id="currentUserBoard">Loading...</strong>
+        </div>
+
+        <select id="userSwitcher" class="select" style="max-width:190px;">
+          <option>Loading users...</option>
+        </select>
+      </div>
+    </header>
+
+    <main class="display-board-scroll-area">
+      <section class="press-grid die-board-grid" id="pressGrid"></section>
     </main>
+
+    <footer class="display-footer">
+      © 2026 One T Media Group · Factory On Call
+    </footer>
   </div>
 
   <dialog id="setupDialog" class="action-dialog">
@@ -91,7 +92,6 @@
           <button class="chip" type="button" data-note="Waiting on forklift">Waiting on forklift</button>
           <button class="chip" type="button" data-note="Waiting on maintenance">Waiting on maintenance</button>
           <button class="chip" type="button" data-note="Changeover cleared">Changeover cleared</button>
-          <button class="button" data-action="blocked">Flag Maintenance</button>
         </div>
       </div>
 
@@ -104,8 +104,9 @@
       </div>
     </form>
   </dialog>
-<script type="module" src="js/firebase-config.js"></script>
-<script type="module" src="js/branding-loader.js"></script>
+
+  <script type="module" src="js/firebase-config.js"></script>
+  <script type="module" src="js/branding-loader.js"></script>
   <script type="module" src="js/board.js"></script>
 </body>
 </html>
