@@ -1,17 +1,15 @@
-import { isDieSetter, isAdmin } from './roles.js';
+import { isAdmin } from './roles.js';
 import { initStore, getSession, setSession } from './store.js';
 import { formatTime, formatDateTime, statusLabel, normalizedSlotStatus } from './utils.js';
 import { watchPressesFromFirestore } from './firestore-presses.js';
 import { updateSetupInFirestore, completeAndShiftSetupInFirestore } from './firestore-write.js';
 import { fetchUsersFromFirestore } from './firestore-users.js';
 import { getStoredSessionUser, setStoredSessionUser } from './session-user.js';
-import { mountUserSwitcher } from './user-switcher.js';
 
 initStore();
 
 const pressGrid = document.getElementById('pressGrid');
 const syncTimeBoard = document.getElementById('syncTimeBoard');
-const currentUserBoard = document.getElementById('currentUserBoard');
 const setupDialog = document.getElementById('setupDialog');
 const areaFilterBoard = document.getElementById('areaFilterBoard');
 const shiftFilterBoard = document.getElementById('shiftFilterBoard');
@@ -25,6 +23,7 @@ let pendingComplete = null;
 let unsubscribePresses = null;
 let isSubmitting = false;
 let dialogOpenedAt = null;
+let expandedPressIds = new Set();
 
 bootstrapSession();
 ensureLoginModal();
@@ -32,12 +31,6 @@ wireLoginModal();
 wireDialog();
 loadDieSetters();
 startPressWatcher();
-
-mountUserSwitcher({
-  selectId: 'userSwitcher',
-  labelId: 'currentUserBoard',
-  allowedRoles: ['dieSetter', 'admin', 'supervisor']
-});
 
 async function loadDieSetters() {
   try {
@@ -97,41 +90,24 @@ function ensureLoginModal() {
 }
 
 function wireLoginModal() {
-  const cancelBtn = document.getElementById('dieSetterLoginCancel');
-  const confirmBtn = document.getElementById('dieSetterLoginConfirm');
-  const pinInput = document.getElementById('dieSetterLoginPin');
+  document.getElementById('dieSetterLoginCancel')?.addEventListener('click', closeDieSetterLogin);
+  document.getElementById('dieSetterLoginConfirm')?.addEventListener('click', confirmDieSetterLogin);
 
-  if (cancelBtn) {
-    cancelBtn.addEventListener('click', closeDieSetterLogin);
-  }
-
-  if (confirmBtn) {
-    confirmBtn.addEventListener('click', confirmDieSetterLogin);
-  }
-
-  if (pinInput) {
-    pinInput.addEventListener('keydown', async (event) => {
-      if (event.key === 'Enter') {
-        await confirmDieSetterLogin();
-      }
-    });
-  }
+  document.getElementById('dieSetterLoginPin')?.addEventListener('keydown', async (event) => {
+    if (event.key === 'Enter') await confirmDieSetterLogin();
+  });
 }
 
 function openDieSetterLogin(pressId, slotIndex) {
   const press = presses.find((item) => item.id === pressId);
   if (!press) return;
 
-  const slots = getSlotsArray(press);
-  const slot = slots[slotIndex];
-
+  const slot = getSlotsArray(press)[slotIndex];
   if (!slot || !slot.partNumber) return;
 
   pendingComplete = {
     pressId,
     slotIndex,
-    pressName: press.equipmentName || `Press ${press.pressNumber}`,
-    partNumber: slot.partNumber,
     expectedUpdatedAt: slot.updatedAt || null
   };
 
@@ -146,24 +122,18 @@ function openDieSetterLogin(pressId, slotIndex) {
   }
 
   renderDieSetterOptions();
-
-  if (modal) {
-    modal.classList.remove('hidden');
-  }
-
+  modal?.classList.remove('hidden');
   setTimeout(() => pinInput?.focus(), 100);
 }
 
 function closeDieSetterLogin() {
-  const modal = document.getElementById('dieSetterLoginModal');
-  if (modal) modal.classList.add('hidden');
+  document.getElementById('dieSetterLoginModal')?.classList.add('hidden');
   pendingComplete = null;
 }
 
 function showLoginError(message) {
   const error = document.getElementById('dieSetterLoginError');
   if (!error) return;
-
   error.textContent = message;
   error.style.display = 'block';
 }
@@ -171,13 +141,10 @@ function showLoginError(message) {
 async function confirmDieSetterLogin() {
   if (!pendingComplete) return;
 
-  const userSelect = document.getElementById('dieSetterLoginUser');
+  const userId = document.getElementById('dieSetterLoginUser')?.value || '';
   const pinInput = document.getElementById('dieSetterLoginPin');
-  const confirmBtn = document.getElementById('dieSetterLoginConfirm');
-
-  const userId = userSelect?.value || '';
   const pin = pinInput?.value.trim() || '';
-
+  const confirmBtn = document.getElementById('dieSetterLoginConfirm');
   const user = dieSetters.find((item) => item.id === userId);
 
   if (!user) {
@@ -228,7 +195,6 @@ async function bootstrapSession() {
 
   if (storedUser) {
     setSession(storedUser);
-    currentUserBoard.textContent = `${storedUser.name} · ${storedUser.role}`;
     return;
   }
 
@@ -243,12 +209,9 @@ async function bootstrapSession() {
     if (defaultUser) {
       setStoredSessionUser(defaultUser);
       setSession(defaultUser);
-      currentUserBoard.textContent = `${defaultUser.name} · ${defaultUser.role}`;
-    } else {
-      currentUserBoard.textContent = 'Public touch screen';
     }
-  } catch {
-    currentUserBoard.textContent = 'Public touch screen';
+  } catch (error) {
+    console.error('❌ Failed to bootstrap board session:', error);
   }
 }
 
@@ -258,6 +221,7 @@ function getActionUserName() {
 
 function getSlotsArray(press) {
   const raw = Array.isArray(press.slots) ? press.slots : Object.values(press.slots || {});
+
   const slots = raw.slice(0, 4).map((slot, index) => {
     const hasPart = Boolean(slot?.partNumber);
     return {
@@ -290,8 +254,7 @@ function getSelectedPressAndSlot() {
   const press = presses.find((item) => item.id === selected.pressId);
   if (!press) return null;
 
-  const slots = getSlotsArray(press);
-  const slot = slots[selected.slotIndex];
+  const slot = getSlotsArray(press)[selected.slotIndex];
   if (!slot) return null;
 
   return { press, slot };
@@ -313,7 +276,7 @@ function ensureDialogNotice() {
   notice.style.color = '#ffd7a8';
 
   const subtitle = document.getElementById('dialogSubtitle');
-  if (subtitle && subtitle.parentElement) {
+  if (subtitle?.parentElement) {
     subtitle.parentElement.insertAdjacentElement('afterend', notice);
   }
 
@@ -350,10 +313,12 @@ function startPressWatcher() {
 function renderBoard() {
   const visiblePresses = filteredPresses();
 
-  syncTimeBoard.textContent = new Date().toLocaleTimeString([], {
-    hour: '2-digit',
-    minute: '2-digit'
-  });
+  if (syncTimeBoard) {
+    syncTimeBoard.textContent = new Date().toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  }
 
   syncAreaFilterOptions();
 
@@ -371,10 +336,15 @@ function renderBoard() {
     return aLabel.localeCompare(bLabel);
   });
 
+  if (!sortedAreaKeys.length) {
+    pressGrid.innerHTML = `<div class="display-empty-state">No equipment found.</div>`;
+    return;
+  }
+
   pressGrid.innerHTML = sortedAreaKeys.map((areaKey) => {
     const pressesInArea = grouped[areaKey];
 
-    const areaLabel =
+    const label =
       areaKey === 'unassigned'
         ? 'Unassigned'
         : pressesInArea[0]?.areaName || 'Unassigned';
@@ -388,33 +358,61 @@ function renderBoard() {
     return `
       <section class="area-block">
         <h2 style="margin-bottom:12px; border-left:8px solid ${areaColor}; padding-left:12px;">
-          ${areaLabel}
+          ${label}
         </h2>
 
-        ${sortedPresses.map((press) => {
-          const slots = getSlotsArray(press);
-
-          return `
-            <article class="press-row">
-              <div class="press-row-header">
-                <div>
-                  <h3>${press.equipmentName || `Press ${press.pressNumber}`}</h3>
-                  <div class="muted">${press.areaName || press.area || 'No work cell'} · Shift ${press.shift}${press.isLocked ? ` · Locked by ${press.lockedBy || 'Admin'}` : ''}</div>
-                </div>
-                <div class="muted">${slots.filter((slot) => slot.partNumber).length} active setups</div>
-              </div>
-              <div class="slot-grid">
-                ${slots.map((slot, slotIndex) => renderSlot(press, slot, slotIndex)).join('')}
-              </div>
-            </article>
-          `;
-        }).join('')}
+        ${sortedPresses.map(renderPressCard).join('')}
       </section>
     `;
   }).join('');
 
+  wireBoardActions();
+}
+
+function renderPressCard(press) {
+  const slots = getSlotsArray(press);
+  const activeCount = slots.filter((slot) => slot.partNumber).length;
+  const isExpanded = expandedPressIds.has(press.id);
+
+  return `
+    <article class="press-row">
+      <button class="press-row-header die-board-press-toggle" data-toggle-press="${press.id}" type="button">
+        <div>
+          <h3>${isExpanded ? '⌄' : '›'} ${press.equipmentName || `Press ${press.pressNumber}`}</h3>
+          <div class="muted">
+            ${press.areaName || press.area || 'No work cell'} · Shift ${press.shift || '1'}${press.isLocked ? ` · Locked by ${press.lockedBy || 'Admin'}` : ''}
+          </div>
+        </div>
+        <div class="muted">${activeCount} active setup${activeCount === 1 ? '' : 's'}</div>
+      </button>
+
+      ${isExpanded ? `
+        <div class="slot-grid">
+          ${slots.map((slot, slotIndex) => renderSlot(press, slot, slotIndex)).join('')}
+        </div>
+      ` : ''}
+    </article>
+  `;
+}
+
+function wireBoardActions() {
+  pressGrid.querySelectorAll('[data-toggle-press]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const pressId = button.dataset.togglePress;
+      if (!pressId) return;
+
+      if (expandedPressIds.has(pressId)) expandedPressIds.delete(pressId);
+      else expandedPressIds.add(pressId);
+
+      renderBoard();
+    });
+  });
+
   pressGrid.querySelectorAll('[data-open-setup]').forEach((button) => {
-    button.addEventListener('click', () => openSetup(button.dataset.pressId, Number(button.dataset.slotIndex)));
+    button.addEventListener('click', (event) => {
+      event.stopPropagation();
+      openSetup(button.dataset.pressId, Number(button.dataset.slotIndex));
+    });
   });
 
   pressGrid.querySelectorAll('[data-complete-shift]').forEach((button) => {
@@ -436,7 +434,6 @@ function renderSlot(press, slot, slotIndex) {
   const areaColor = press.areaColor || '#444';
   const empty = !slot.partNumber;
   const displayStatus = empty ? 'no_setup' : normalizedSlotStatus(slot.status, slotIndex, true);
-  const canAct = !press.isLocked;
   const canMarkReady = !press.isLocked && !empty && slotIndex === 0 && displayStatus !== 'ready';
   const showCompleteShift = !press.isLocked && !empty && slotIndex === 0 && displayStatus === 'ready';
   const emptyClass = empty ? ' empty-slot-card' : '';
@@ -470,13 +467,11 @@ function renderSlot(press, slot, slotIndex) {
             ? `<button class="button success full" data-complete-shift data-press-id="${press.id}" data-slot-index="${slotIndex}">Complete + Shift</button>`
             : ''
         }
-${
-  empty
-    ? `<button class="button primary full" data-open-setup data-press-id="${press.id}" data-slot-index="${slotIndex}">
-        View Notes
-      </button>`
-    : ''
-}
+        ${
+          empty
+            ? `<button class="button primary full" data-open-setup data-press-id="${press.id}" data-slot-index="${slotIndex}">View Notes</button>`
+            : ''
+        }
       </div>
 
       <div class="muted">Updated ${formatTime(slot.updatedAt)}</div>
@@ -491,16 +486,13 @@ async function handleReadyForChangeover(pressId, slotIndex) {
     return;
   }
 
-  const slots = getSlotsArray(press);
-  const slot = slots[slotIndex];
+  const slot = getSlotsArray(press)[slotIndex];
   if (!slot || !slot.partNumber) return;
   if (normalizedSlotStatus(slot.status, slotIndex, true) === 'ready') return;
 
-  const confirmed = window.confirm(
-    `Mark ${press.equipmentName || `Press ${press.pressNumber}`} Slot ${slotIndex + 1} as READY FOR CHANGEOVER?`
-  );
-
-  if (!confirmed) return;
+  if (!window.confirm(`Mark ${press.equipmentName || `Press ${press.pressNumber}`} Slot ${slotIndex + 1} as READY FOR CHANGEOVER?`)) {
+    return;
+  }
 
   try {
     await updateSetupInFirestore({
@@ -518,9 +510,7 @@ async function handleReadyForChangeover(pressId, slotIndex) {
     });
   } catch (error) {
     if (error?.code === 'slot-conflict') {
-      alert(
-        `This slot was updated by ${error.lastUpdatedBy || 'another user'} before marking ready.\n\nPlease review the latest data and try again.`
-      );
+      alert(`This slot was updated by ${error.lastUpdatedBy || 'another user'} before marking ready.\n\nPlease review the latest data and try again.`);
       return;
     }
 
@@ -538,8 +528,7 @@ function openSetup(pressId, slotIndex) {
     return;
   }
 
-  const slots = getSlotsArray(press);
-  const slot = slots[slotIndex];
+  const slot = getSlotsArray(press)[slotIndex];
   if (!slot) return;
 
   selected = { pressId, slotIndex, pressNumber: press.pressNumber };
@@ -557,9 +546,7 @@ function refreshOpenDialog() {
   fillDialog(press, slot, selected.slotIndex);
 
   if (dialogOpenedAt && slot.updatedAt && slot.updatedAt !== dialogOpenedAt) {
-    showDialogNotice(
-      `Updated by ${slot.lastUpdatedBy || 'another user'} at ${formatDateTime(slot.updatedAt)}`
-    );
+    showDialogNotice(`Updated by ${slot.lastUpdatedBy || 'another user'} at ${formatDateTime(slot.updatedAt)}`);
   }
 }
 
@@ -567,7 +554,7 @@ function fillDialog(press, slot, slotIndex) {
   const empty = !slot.partNumber;
 
   document.getElementById('dialogTitle').textContent = `${press.equipmentName || `Press ${press.pressNumber}`} · Slot ${slotIndex + 1}`;
-  document.getElementById('dialogSubtitle').textContent = `${press.areaName || press.area || 'No work cell'} · Shift ${press.shift}${press.isLocked ? ' · LOCKED' : ''}`;
+  document.getElementById('dialogSubtitle').textContent = `${press.areaName || press.area || 'No work cell'} · Shift ${press.shift || '1'}${press.isLocked ? ' · LOCKED' : ''}`;
   document.getElementById('dialogPart').textContent = slot.partNumber || '—';
   document.getElementById('dialogQty').textContent = slot.partNumber ? String(slot.qtyRemaining) : '—';
   document.getElementById('dialogStatus').textContent = slot.partNumber ? statusLabel(normalizedSlotStatus(slot.status, slotIndex, true)) : 'No setup';
@@ -607,11 +594,11 @@ function wireDialog() {
     });
   });
 
-  areaFilterBoard.addEventListener('change', renderBoard);
-  shiftFilterBoard.addEventListener('change', renderBoard);
-  refreshBoardBtn.addEventListener('click', renderBoard);
+  areaFilterBoard?.addEventListener('change', renderBoard);
+  shiftFilterBoard?.addEventListener('change', renderBoard);
+  refreshBoardBtn?.addEventListener('click', renderBoard);
 
-  setupDialog.addEventListener('close', () => {
+  setupDialog?.addEventListener('close', () => {
     selected = null;
     isSubmitting = false;
     dialogOpenedAt = null;
@@ -630,27 +617,17 @@ function setDialogBusyState(isBusy) {
     const data = getSelectedPressAndSlot();
     const empty = !data || !data.slot.partNumber || data.press.isLocked;
 
-    if (empty && button.dataset.action !== 'save_notes') {
-      button.disabled = true;
-    } else {
-      button.disabled = isBusy;
-    }
+    button.disabled = empty && button.dataset.action !== 'save_notes' ? true : isBusy;
   });
 
-  if (dialogNotes) {
-    dialogNotes.disabled = isBusy;
-  }
+  if (dialogNotes) dialogNotes.disabled = isBusy;
 }
 
 function requireBlockReason() {
   const reason = dialogNotes.value.trim();
-
   if (reason) return true;
 
-  alert(
-    'Please add a reason before flagging Maintenance.\n\nExamples:\n- Tooling issue\n- Material missing\n- Machine fault\n- Waiting on maintenance'
-  );
-
+  alert('Please add a reason before flagging Maintenance.\n\nExamples:\n- Tooling issue\n- Material missing\n- Machine fault\n- Waiting on maintenance');
   dialogNotes.focus();
   return false;
 }
@@ -675,15 +652,12 @@ async function handleDialogAction(action) {
     return;
   }
 
-  if (action === 'blocked' && !requireBlockReason()) {
-    return;
-  }
+  if (action === 'blocked' && !requireBlockReason()) return;
 
   if (action === 'clear') {
     const confirmed = window.confirm(
       `Clear setup for Press ${selected.pressNumber} Slot ${selected.slotIndex + 1}?\n\nThis removes the part number, quantity, status, and notes from this slot.`
     );
-
     if (!confirmed) return;
   }
 
@@ -700,7 +674,6 @@ async function handleDialogAction(action) {
     const confirmed = window.confirm(
       `Confirm: ${actionLabels[action] || 'apply this action'} for Press ${selected.pressNumber} Slot ${selected.slotIndex + 1}?`
     );
-
     if (!confirmed) return;
   }
 
@@ -747,9 +720,7 @@ async function handleDialogAction(action) {
     setupDialog.close();
   } catch (error) {
     if (error?.code === 'slot-conflict') {
-      alert(
-        `This slot was updated by ${error.lastUpdatedBy || 'another user'} before your change.\n\nPlease review the latest data and try again.`
-      );
+      alert(`This slot was updated by ${error.lastUpdatedBy || 'another user'} before your change.\n\nPlease review the latest data and try again.`);
       return;
     }
 
@@ -778,11 +749,10 @@ function syncAreaFilterOptions() {
     ${areaNames.map((name) => `<option value="${name}">${name}</option>`).join('')}
   `;
 
-  if (currentValue === 'all' || currentValue === 'unassigned' || areaNames.includes(currentValue)) {
-    areaFilterBoard.value = currentValue;
-  } else {
-    areaFilterBoard.value = 'all';
-  }
+  areaFilterBoard.value =
+    currentValue === 'all' || currentValue === 'unassigned' || areaNames.includes(currentValue)
+      ? currentValue
+      : 'all';
 }
 
 function filteredPresses() {
@@ -790,19 +760,17 @@ function filteredPresses() {
     const pressArea = press.areaId && press.areaName ? press.areaName : 'unassigned';
 
     const areaMatch =
-      areaFilterBoard.value === 'all' ||
-      areaFilterBoard.value === pressArea;
+      areaFilterBoard?.value === 'all' ||
+      areaFilterBoard?.value === pressArea;
 
     const shiftMatch =
-      shiftFilterBoard.value === 'all' ||
-      press.shift === shiftFilterBoard.value;
+      shiftFilterBoard?.value === 'all' ||
+      press.shift === shiftFilterBoard?.value;
 
     return areaMatch && shiftMatch;
   });
 }
 
 window.addEventListener('beforeunload', () => {
-  if (typeof unsubscribePresses === 'function') {
-    unsubscribePresses();
-  }
+  if (typeof unsubscribePresses === 'function') unsubscribePresses();
 });
