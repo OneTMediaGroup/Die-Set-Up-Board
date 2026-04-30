@@ -361,7 +361,7 @@ input, textarea, select {
   #supervisorBoard .slot-grid {
     grid-template-columns: repeat(2, 1fr);
   }
-} /* <-- ADD THIS */
+} 
 
 
 
