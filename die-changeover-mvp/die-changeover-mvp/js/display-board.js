@@ -125,6 +125,7 @@ function filteredPresses() {
     })
     .sort(sortDisplayPresses);
 }
+
 function sortDisplayPresses(a, b) {
   const aPriority = displayPriority(a);
   const bPriority = displayPriority(b);
@@ -140,11 +141,11 @@ function sortDisplayPresses(a, b) {
 function displayPriority(press) {
   const slots = getSlotsArray(press);
 
-const slot1Ready = slots[0]?.partNumber &&
-  normalizedSlotStatus(slots[0].status, 0, true) === 'ready';
+  const slot1Ready =
+    slots[0]?.partNumber &&
+    normalizedSlotStatus(slots[0].status, 0, true) === 'ready';
 
-if (slot1Ready) return 0;
-
+  if (slot1Ready) return 0;
 
   const hasReady = slots.some((slot, index) =>
     slot.partNumber && normalizedSlotStatus(slot.status, index, true) === 'ready'
@@ -158,9 +159,6 @@ if (slot1Ready) return 0;
   if (hasBlocked) return 2;
   return 3;
 }
-
-
-
 
 function renderDisplayBoard() {
   const visiblePresses = filteredPresses();
@@ -189,8 +187,11 @@ function renderDisplayBoard() {
   const sections = [...grouped.values()].sort((a, b) => a.label.localeCompare(b.label));
 
   boardContent.innerHTML = sections.map((section) => {
-    const sortedPresses = [...section.presses].sort((a, b) => equipmentLabel(a).localeCompare(equipmentLabel(b), undefined, { numeric: true }));
-    const areaActive = sortedPresses.reduce((count, press) => count + getSlotsArray(press).filter((slot) => slot.partNumber).length, 0);
+    const sortedPresses = [...section.presses].sort(sortDisplayPresses);
+    const areaActive = sortedPresses.reduce(
+      (count, press) => count + getSlotsArray(press).filter((slot) => slot.partNumber).length,
+      0
+    );
 
     return `
       <section class="display-area-section" style="--area-color:${section.color};">
@@ -220,16 +221,16 @@ function renderEquipmentRow(press) {
       <div class="display-equipment-summary">
         <div class="display-equipment-title">
           <strong>${equipmentLabel(press)}</strong>
-          <span>${areaLabel(press)} {press.shift || '1'}${press.isLocked ? ' · Locked' : ''}</span>
+          <span>${areaLabel(press)}${press.isLocked ? ' · Locked' : ''}</span>
         </div>
         <span class="status-pill ${status.className}">${status.label}</span>
         <span class="display-active-count">${activeSlots} / ${slots.length} setups</span>
       </div>
 
       <div class="display-slot-strip compact-tv">
-  ${renderDisplaySlot(slots[0], 0)}
-  ${renderDisplaySlot(getNextSlot(slots), 1, 'Next')}
-</div>
+        ${renderDisplaySlot(slots[0], 0)}
+        ${renderDisplaySlot(getNextSlot(slots), 1, 'Next')}
+      </div>
     </article>
   `;
 }
@@ -247,7 +248,6 @@ function equipmentStatus(press, slots) {
 function getNextSlot(slots) {
   return slots.slice(1).find((slot) => slot.partNumber) || emptySlot();
 }
-
 
 function renderDisplaySlot(slot, index, labelOverride = null) {
   const empty = !slot.partNumber;
