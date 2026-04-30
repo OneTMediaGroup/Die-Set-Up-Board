@@ -3,7 +3,7 @@ import { requireRoleAccess } from './auth-lock.js';
 await requireRoleAccess(['admin']);
 
 
-import { mountUserSwitcher } from './user-switcher.js';
+
 import { getSession } from './store.js';
 import { getStoredSessionUser } from './session-user.js';
 import { mountEquipmentTool } from './admin-equipment.js';
@@ -23,11 +23,7 @@ init();
 async function init() {
   renderCurrentAdminUser();
 
-  await mountUserSwitcher({
-    selectId: 'userSwitcher',
-    labelId: 'currentAdminUser',
-    allowedRoles: ['admin', 'supervisor', 'dieSetter']
-  });
+  
 
   toolButtons.forEach((button) => {
     button.addEventListener('click', () => selectTool(button.dataset.adminTool));

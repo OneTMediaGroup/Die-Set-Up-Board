@@ -5,7 +5,7 @@ await requireRoleAccess(['supervisor', 'admin']);
 import { initStore, getSession, setSession } from './store.js';
 import { fetchUsersFromFirestore } from './firestore-users.js';
 import { getStoredSessionUser, setStoredSessionUser } from './session-user.js';
-import { mountUserSwitcher } from './user-switcher.js';
+
 
 import { mountQueueTool } from './supervisor-queue.js';
 import { mountAreaViewTool } from './supervisor-areas.js';
@@ -24,11 +24,7 @@ init();
 async function init() {
   await bootstrapSession();
 
-  await mountUserSwitcher({
-    selectId: 'userSwitcher',
-    labelId: 'currentUserSupervisor',
-    allowedRoles: ['supervisor', 'admin']
-  });
+ 
 
   toolButtons.forEach((button) => {
     button.addEventListener('click', () => selectTool(button.dataset.supervisorTool));
