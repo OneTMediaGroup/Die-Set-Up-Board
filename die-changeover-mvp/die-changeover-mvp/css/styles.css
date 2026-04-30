@@ -1696,3 +1696,11 @@ input, textarea, select {
 .display-slot-card:nth-child(2) {
   border: 2px solid #94a3b8;
 }
+
+.display-slot-strip.compact-tv {
+  grid-template-columns: repeat(2, minmax(260px, 1fr)) !important;
+}
+
+.display-slot-strip.compact-tv .display-slot-card {
+  min-height: 115px;
+}

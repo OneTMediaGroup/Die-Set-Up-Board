@@ -180,9 +180,10 @@ function renderEquipmentRow(press) {
         <span class="display-active-count">${activeSlots} / ${slots.length} setups</span>
       </div>
 
-      <div class="display-slot-strip">
-        ${slots.map((slot, index) => renderDisplaySlot(slot, index)).join('')}
-      </div>
+      <div class="display-slot-strip compact-tv">
+  ${renderDisplaySlot(slots[0], 0)}
+  ${renderDisplaySlot(getNextSlot(slots), 1, 'Next')}
+</div>
     </article>
   `;
 }
@@ -197,16 +198,22 @@ function equipmentStatus(press, slots) {
   return { label: 'No Setups', className: 'no_setup' };
 }
 
-function renderDisplaySlot(slot, index) {
+function getNextSlot(slots) {
+  return slots.slice(1).find((slot) => slot.partNumber) || emptySlot();
+}
+
+
+function renderDisplaySlot(slot, index, labelOverride = null) {
   const empty = !slot.partNumber;
   const statusClass = empty ? 'no_setup' : normalizedSlotStatus(slot.status, index, true);
   const isReady = statusClass === 'ready';
+  const label = labelOverride || (index === 0 ? 'Current' : `Slot ${index + 1}`);
 
   return `
     <div class="display-slot-card ${empty ? 'empty' : ''} ${isReady ? 'ready-slot' : ''}">
       ${isReady ? `<div class="display-ready-banner">READY FOR CHANGEOVER</div>` : ''}
       <div class="display-slot-topline">
-        <strong>Slot ${index + 1}</strong>
+        <strong>${label}</strong>
         <span class="status-pill ${statusClass}">${empty ? 'No Setup' : statusLabel(statusClass)}</span>
       </div>
       <div class="display-slot-main">
