@@ -112,9 +112,49 @@ function syncAreaOptions(preferredValue = '') {
 
 function filteredPresses() {
   const selectedArea = areaFilter?.value || 'all';
-  if (selectedArea === 'all') return presses;
-  return presses.filter((press) => areaKey(press) === selectedArea);
+
+  return presses
+    .filter((press) => {
+      const slots = getSlotsArray(press);
+      const hasActiveSetup = slots.some((slot) => slot.partNumber);
+
+      if (!hasActiveSetup) return false;
+      if (selectedArea === 'all') return true;
+
+      return areaKey(press) === selectedArea;
+    })
+    .sort(sortDisplayPresses);
 }
+function sortDisplayPresses(a, b) {
+  const aPriority = displayPriority(a);
+  const bPriority = displayPriority(b);
+
+  if (aPriority !== bPriority) return aPriority - bPriority;
+
+  const areaCompare = areaLabel(a).localeCompare(areaLabel(b), undefined, { numeric: true });
+  if (areaCompare !== 0) return areaCompare;
+
+  return equipmentLabel(a).localeCompare(equipmentLabel(b), undefined, { numeric: true });
+}
+
+function displayPriority(press) {
+  const slots = getSlotsArray(press);
+
+  const hasReady = slots.some((slot, index) =>
+    slot.partNumber && normalizedSlotStatus(slot.status, index, true) === 'ready'
+  );
+
+  const hasBlocked = slots.some((slot) =>
+    slot.partNumber && slot.status === 'blocked'
+  );
+
+  if (hasReady) return 1;
+  if (hasBlocked) return 2;
+  return 3;
+}
+
+
+
 
 function renderDisplayBoard() {
   const visiblePresses = filteredPresses();
