@@ -1,73 +1,112 @@
 import { fetchUsersFromFirestore } from './firestore-users.js';
+import { setSession, getSession } from './store.js';
+
+const LOCK_TIMEOUT = 10 * 60 * 1000; // 10 minutes
+let lockTimer = null;
+let lastActivity = Date.now();
+
+/* ============================= */
+/* PUBLIC ENTRY */
+/* ============================= */
 
 export async function requireRoleAccess(allowedRoles = []) {
-  const modal = createLoginModal();
-  document.body.appendChild(modal);
+  const session = getSession();
 
-  const users = await fetchUsersFromFirestore();
+  if (!session || !allowedRoles.includes(session.role)) {
+    await showLoginModal(allowedRoles);
+  }
 
-  const allowedUsers = users.filter(u =>
-    allowedRoles.includes(u.role) &&
-    (u.status === 'active' || u.isActive === true) &&
-    u.pin
-  );
+  startAutoLock();
+}
 
-  const userSelect = modal.querySelector('#authUser');
-  const pinInput = modal.querySelector('#authPin');
-  const error = modal.querySelector('#authError');
+/* ============================= */
+/* AUTO LOCK SYSTEM */
+/* ============================= */
 
-  userSelect.innerHTML = allowedUsers
-    .map(u => `<option value="${u.id}">${u.name} (${u.role})</option>`)
-    .join('');
+function startAutoLock() {
+  resetTimer();
 
-  return new Promise((resolve) => {
-    modal.querySelector('#authConfirm').onclick = () => {
-      const user = allowedUsers.find(u => u.id === userSelect.value);
-      const pin = pinInput.value.trim();
-
-      if (!user) {
-        showError('Select user');
-        return;
-      }
-
-      if (!pin || String(user.pin) !== pin) {
-        showError('Invalid PIN');
-        return;
-      }
-
-      modal.remove();
-      resolve(user);
-    };
-
-    function showError(msg) {
-      error.textContent = msg;
-      error.style.display = 'block';
-    }
+  ['click', 'touchstart', 'keydown'].forEach((event) => {
+    window.addEventListener(event, resetTimer, true);
   });
 }
 
-function createLoginModal() {
-  const wrapper = document.createElement('div');
-  wrapper.className = 'modal';
+function resetTimer() {
+  lastActivity = Date.now();
 
-  wrapper.innerHTML = `
-    <div class="modal-content">
-      <h3>Access Required</h3>
-      <p class="muted">Enter your credentials to continue.</p>
+  if (lockTimer) clearTimeout(lockTimer);
 
-      <label>User</label>
-      <select id="authUser"></select>
+  lockTimer = setTimeout(() => {
+    lockScreen();
+  }, LOCK_TIMEOUT);
+}
 
-      <label style="margin-top:10px;">PIN</label>
-      <input id="authPin" type="password" inputmode="numeric" placeholder="Enter PIN" />
+function lockScreen() {
+  showLoginModal(['admin', 'supervisor', 'dieSetter'], true);
+}
 
-      <div id="authError" class="error-text" style="display:none;"></div>
+/* ============================= */
+/* LOGIN MODAL */
+/* ============================= */
 
-      <div class="modal-actions">
-        <button id="authConfirm" class="button primary">Enter</button>
+async function showLoginModal(allowedRoles, isReauth = false) {
+  let modal = document.getElementById('globalLoginModal');
+
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'globalLoginModal';
+    modal.className = 'modal';
+
+    modal.innerHTML = `
+      <div class="modal-content">
+        <h3>${isReauth ? 'Session Locked' : 'Login Required'}</h3>
+        <p class="muted">Enter your name and PIN</p>
+
+        <select id="loginUser"></select>
+        <input id="loginPin" type="password" placeholder="Enter PIN" />
+
+        <div id="loginError" class="error-text"></div>
+
+        <div class="modal-actions">
+          <button id="loginConfirm" class="button primary">Login</button>
+        </div>
       </div>
-    </div>
-  `;
+    `;
 
-  return wrapper;
+    document.body.appendChild(modal);
+  }
+
+  modal.classList.remove('hidden');
+
+  const users = await fetchUsersFromFirestore();
+
+  const validUsers = users.filter(
+    (u) => allowedRoles.includes(u.role) && u.pin
+  );
+
+  const select = document.getElementById('loginUser');
+  const pinInput = document.getElementById('loginPin');
+  const error = document.getElementById('loginError');
+
+  select.innerHTML = validUsers
+    .map((u) => `<option value="${u.id}">${u.name} (${u.role})</option>`)
+    .join('');
+
+  pinInput.value = '';
+  error.textContent = '';
+
+  document.getElementById('loginConfirm').onclick = () => {
+    const user = validUsers.find((u) => u.id === select.value);
+    const pin = pinInput.value.trim();
+
+    if (!user || String(user.pin) !== pin) {
+      error.textContent = 'Invalid PIN';
+      return;
+    }
+
+    setSession(user);
+    modal.classList.add('hidden');
+
+    resetTimer(); // 🔥 restart timer after login
+  };
 }
