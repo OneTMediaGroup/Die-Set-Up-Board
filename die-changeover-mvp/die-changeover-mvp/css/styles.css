@@ -1653,3 +1653,46 @@ input, textarea, select {
   padding: 5px 6px;
   font-size: .72rem;
 }
+
+/* Display board final tightening */
+.display-ready-banner {
+  font-size: .68rem;
+  padding: 4px 6px;
+  opacity: 0.9;
+}
+
+.display-slot-card {
+  min-height: 82px;
+  padding: 8px 10px;
+}
+
+.display-slot-card.empty {
+  opacity: 0.6;
+}
+
+.display-slot-strip {
+  gap: 8px;
+}
+
+.display-area-header,
+.display-equipment-row {
+  border-left-width: 8px !important;
+}
+
+.display-equipment-summary {
+  align-items: center;
+}
+
+.display-equipment-summary > .status-pill {
+  justify-self: end;
+  align-self: center;
+}
+
+.display-slot-card:first-child {
+  border: 2px solid #2563eb;
+  background: #eff6ff;
+}
+
+.display-slot-card:nth-child(2) {
+  border: 2px solid #94a3b8;
+}
