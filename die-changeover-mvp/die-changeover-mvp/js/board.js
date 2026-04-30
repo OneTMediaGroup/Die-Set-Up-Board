@@ -71,8 +71,10 @@ function ensureLoginModal() {
         <h3>Complete + Shift</h3>
         <p class="muted" style="margin-bottom:14px;">Confirm who completed this changeover.</p>
 
-        <label class="muted">User</label>
-        <select id="dieSetterLoginUser" style="margin-top:6px; width:100%;"></select>
+        <label class="muted">Employee ID</label>
+<input id="dieSetterLoginId" type="number" inputmode="numeric" placeholder="Enter ID" style="margin-top:6px; width:100%;" />
+
+<div id="dieSetterLoginName" class="muted" style="margin-top:8px;"></div>
 
         <label class="muted" style="margin-top:12px; display:block;">PIN</label>
         <input id="dieSetterLoginPin" type="password" inputmode="numeric" placeholder="Enter PIN" style="margin-top:6px; width:100%;" />
@@ -91,7 +93,15 @@ function ensureLoginModal() {
 function wireLoginModal() {
   document.getElementById('dieSetterLoginCancel')?.addEventListener('click', closeDieSetterLogin);
   document.getElementById('dieSetterLoginConfirm')?.addEventListener('click', confirmDieSetterLogin);
+document.getElementById('dieSetterLoginId')?.addEventListener('input', (e) => {
+  const val = e.target.value;
+  const user = dieSetters.find(u => String(u.employeeId) === val);
 
+  const label = document.getElementById('dieSetterLoginName');
+  if (!label) return;
+
+  label.textContent = user ? `Confirm: ${user.name}` : '';
+});
   document.getElementById('dieSetterLoginPin')?.addEventListener('keydown', async (event) => {
     if (event.key === 'Enter') await confirmDieSetterLogin();
   });
@@ -140,11 +150,11 @@ function showLoginError(message) {
 async function confirmDieSetterLogin() {
   if (!pendingComplete) return;
 
-  const userId = document.getElementById('dieSetterLoginUser')?.value || '';
+  const enteredId = document.getElementById('dieSetterLoginId')?.value.trim();
   const pinInput = document.getElementById('dieSetterLoginPin');
   const pin = pinInput?.value.trim() || '';
   const confirmBtn = document.getElementById('dieSetterLoginConfirm');
-  const user = dieSetters.find((item) => item.id === userId);
+  const user = dieSetters.find((item) => String(item.employeeId) === enteredId);
 
   if (!user) {
     showLoginError('Select a user.');
