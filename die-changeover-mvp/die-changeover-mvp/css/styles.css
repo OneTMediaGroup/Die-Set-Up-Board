@@ -361,6 +361,10 @@ input, textarea, select {
   #supervisorBoard .slot-grid {
     grid-template-columns: repeat(2, 1fr);
   }
+} /* <-- ADD THIS */
+
+
+
 /* Empty slot highlight */
 .slot-card.empty-slot-card {
   border: 2px dashed rgba(255, 255, 255, 0.18);
@@ -400,7 +404,7 @@ input, textarea, select {
 .slot-actions .button:only-child {
   grid-column: 1 / -1;
 }
-}
+
 
 /* Admin split layout v2: one sidebar, right-pane tools */
 .admin-app-shell {
@@ -1285,12 +1289,14 @@ input, textarea, select {
   border-color: #cbd5e1 !important;
 }
 
+
 .status-pill.ready,
-.status-pill.ready_for_changeover {
+.status-pill.ready_for_changeover,
+.status-pill.success {
   background: #16a34a !important;
-  color: #fff !important;
+  color: #111 !important;
   border-color: #15803d !important;
-  box-shadow: 0 0 0 3px rgba(22, 163, 74, .14);
+  font-weight: 900;
 }
 
 .slot-card.ready-slot,
@@ -1303,7 +1309,7 @@ input, textarea, select {
 .button.success,
 .button.success.full {
   background: #16a34a !important;
-  color: #fff !important;
+  color: #111 !important;
   border-color: #15803d !important;
 }
 
@@ -1538,8 +1544,3 @@ input, textarea, select {
   }
 }
 
-.status-pill.ready,
-.status-pill.success {
-  color: #111 !important;
-  font-weight: 800;
-}
