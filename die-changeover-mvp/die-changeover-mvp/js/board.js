@@ -12,7 +12,6 @@ const pressGrid = document.getElementById('pressGrid');
 const syncTimeBoard = document.getElementById('syncTimeBoard');
 const setupDialog = document.getElementById('setupDialog');
 const areaFilterBoard = document.getElementById('areaFilterBoard');
-const shiftFilterBoard = document.getElementById('shiftFilterBoard');
 const refreshBoardBtn = document.getElementById('refreshBoardBtn');
 const dialogNotes = document.getElementById('dialogNotes');
 
@@ -54,7 +53,7 @@ function renderDieSetterOptions() {
   if (!select) return;
 
   if (!dieSetters.length) {
-    select.innerHTML = `<option value="">No active die setters found</option>`;
+    select.innerHTML = `<option value="">No active users found</option>`;
     return;
   }
 
@@ -69,10 +68,10 @@ function ensureLoginModal() {
   document.body.insertAdjacentHTML('beforeend', `
     <div id="dieSetterLoginModal" class="modal hidden">
       <div class="modal-content">
-        <h3>Die Setter Login</h3>
+        <h3>Complete + Shift</h3>
         <p class="muted" style="margin-bottom:14px;">Confirm who completed this changeover.</p>
 
-        <label class="muted">Die Setter</label>
+        <label class="muted">User</label>
         <select id="dieSetterLoginUser" style="margin-top:6px; width:100%;"></select>
 
         <label class="muted" style="margin-top:12px; display:block;">PIN</label>
@@ -148,7 +147,7 @@ async function confirmDieSetterLogin() {
   const user = dieSetters.find((item) => item.id === userId);
 
   if (!user) {
-    showLoginError('Select a die setter.');
+    showLoginError('Select a user.');
     return;
   }
 
@@ -380,7 +379,7 @@ function renderPressCard(press) {
         <div>
           <h3>${isExpanded ? '⌄' : '›'} ${press.equipmentName || `Press ${press.pressNumber}`}</h3>
           <div class="muted">
-            ${press.areaName || press.area || 'No work cell'} · Shift ${press.shift || '1'}${press.isLocked ? ` · Locked by ${press.lockedBy || 'Admin'}` : ''}
+            ${press.areaName || press.area || 'No work cell'}${press.isLocked ? ` · Locked by ${press.lockedBy || 'Admin'}` : ''}
           </div>
         </div>
         <div class="muted">${activeCount} active setup${activeCount === 1 ? '' : 's'}</div>
@@ -554,7 +553,8 @@ function fillDialog(press, slot, slotIndex) {
   const empty = !slot.partNumber;
 
   document.getElementById('dialogTitle').textContent = `${press.equipmentName || `Press ${press.pressNumber}`} · Slot ${slotIndex + 1}`;
-  document.getElementById('dialogSubtitle').textContent = `${press.areaName || press.area || 'No work cell'} · Shift ${press.shift || '1'}${press.isLocked ? ' · LOCKED' : ''}`;
+  document.getElementById('dialogSubtitle').textContent =
+    `${press.areaName || press.area || 'No work cell'}${press.isLocked ? ' · LOCKED' : ''}`;
   document.getElementById('dialogPart').textContent = slot.partNumber || '—';
   document.getElementById('dialogQty').textContent = slot.partNumber ? String(slot.qtyRemaining) : '—';
   document.getElementById('dialogStatus').textContent = slot.partNumber ? statusLabel(normalizedSlotStatus(slot.status, slotIndex, true)) : 'No setup';
@@ -595,7 +595,6 @@ function wireDialog() {
   });
 
   areaFilterBoard?.addEventListener('change', renderBoard);
-  shiftFilterBoard?.addEventListener('change', renderBoard);
   refreshBoardBtn?.addEventListener('click', renderBoard);
 
   setupDialog?.addEventListener('close', () => {
@@ -759,15 +758,10 @@ function filteredPresses() {
   return presses.filter((press) => {
     const pressArea = press.areaId && press.areaName ? press.areaName : 'unassigned';
 
-    const areaMatch =
+    return (
       areaFilterBoard?.value === 'all' ||
-      areaFilterBoard?.value === pressArea;
-
-    const shiftMatch =
-      shiftFilterBoard?.value === 'all' ||
-      press.shift === shiftFilterBoard?.value;
-
-    return areaMatch && shiftMatch;
+      areaFilterBoard?.value === pressArea
+    );
   });
 }
 

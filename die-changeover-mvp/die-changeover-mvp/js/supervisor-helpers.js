@@ -171,7 +171,7 @@ export function renderPressQueueRow(press, arg1 = '', arg2 = '', arg3 = false) {
         <span class="queue-chevron">${chevron}</span>
         <span class="queue-equipment-name">${equipmentLabel(press)}</span>
         <span class="queue-slot-count">${slots.length}</span>
-        <span class="queue-equipment-meta">${areaLabel(press)} · Shift ${press.shift || '1'}${press.isLocked ? ' · Locked' : ''}</span>
+        <span class="queue-equipment-meta">${areaLabel(press)} {press.shift || '1'}${press.isLocked ? ' · Locked' : ''}</span>
         <span class="status-pill queue-status ${status.className}">${status.label}</span>
         <span class="queue-active-count">${status.active} active setup${status.active === 1 ? '' : 's'}</span>
         ${options.showAddSetup ? `<span class="button queue-add-button" data-queue-add="${press.id}">+ Add Setup</span>` : ''}

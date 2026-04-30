@@ -220,7 +220,7 @@ function renderEquipmentRow(press) {
       <div class="display-equipment-summary">
         <div class="display-equipment-title">
           <strong>${equipmentLabel(press)}</strong>
-          <span>${areaLabel(press)} · Shift ${press.shift || '1'}${press.isLocked ? ' · Locked' : ''}</span>
+          <span>${areaLabel(press)} {press.shift || '1'}${press.isLocked ? ' · Locked' : ''}</span>
         </div>
         <span class="status-pill ${status.className}">${status.label}</span>
         <span class="display-active-count">${activeSlots} / ${slots.length} setups</span>
