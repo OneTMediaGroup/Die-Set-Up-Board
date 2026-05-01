@@ -24,11 +24,18 @@ export function initStore() {
 }
 
 export function getSession() {
-  return JSON.parse(localStorage.getItem(KEYS.session) || 'null');
+  return JSON.parse(sessionStorage.getItem(KEYS.session) || 'null');
 }
 
 export function setSession(session) {
-  localStorage.setItem(KEYS.session, JSON.stringify(session));
+  if (!session) {
+    sessionStorage.removeItem(KEYS.session);
+    localStorage.removeItem(KEYS.session);
+    return;
+  }
+
+  sessionStorage.setItem(KEYS.session, JSON.stringify(session));
+  localStorage.removeItem(KEYS.session);
 }
 
 export function getPresses() {
