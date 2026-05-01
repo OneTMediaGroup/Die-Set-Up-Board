@@ -128,7 +128,7 @@ function render() {
 
         <label>
           <span>PIN</span>
-          <input id="newUserPin" type="password" inputmode="numeric" placeholder="PIN 1–9999 if required" autocomplete="new-password" />
+          <input id="newUserPin" type="password" inputmode="numeric" placeholder="xxxxx" autocomplete="new-password" />
         </label>
 
         <label>
