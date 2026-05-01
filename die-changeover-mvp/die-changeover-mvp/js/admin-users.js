@@ -247,6 +247,12 @@ function renderUserRow(user) {
           <input data-user-pin="${user.id}" value="${escapeAttr(user.pin || '')}" inputmode="numeric" placeholder="PIN" autocomplete="new-password" />
         </label>
 
+
+        <label>
+  <span>Badge Code</span>
+  <input data-user-badge-code="${user.id}" value="${escapeAttr(user.badgeCode || '')}" placeholder="Optional scan code" autocomplete="off" />
+</label>
+
         <label>
           <span>Status</span>
           <select data-user-status="${user.id}">
