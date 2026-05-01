@@ -271,10 +271,17 @@ root.querySelector('#refreshUsersBtn')?.addEventListener('click', loadAndRender)
 root.querySelector('#exportUsersBtn')?.addEventListener('click', exportUsersCSV);
 
   root.querySelector('#userSearchInput')?.addEventListener('input', (event) => {
-    searchText = event.target.value;
-    editingUserId = null;
-    render();
-  });
+  searchText = event.target.value;
+  editingUserId = null;
+
+  render();
+
+  const searchInput = root.querySelector('#userSearchInput');
+  if (searchInput) {
+    searchInput.focus();
+    searchInput.setSelectionRange(searchInput.value.length, searchInput.value.length);
+  }
+});
 
   root.querySelector('#userRoleFilter')?.addEventListener('change', (event) => {
     roleFilter = event.target.value;
