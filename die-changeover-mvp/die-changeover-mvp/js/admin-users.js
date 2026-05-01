@@ -31,8 +31,6 @@ const ROLE_ORDER = {
   admin: 3
 };
 
-const PIN_REQUIRED_ROLES = ['dieSetter', 'supervisor', 'admin'];
-
 export async function mountUsersTool(container) {
   root = container;
   await loadAndRender();
@@ -74,6 +72,7 @@ function filteredUsers() {
     const matchesSearch = !search ||
       String(user.name || '').toLowerCase().includes(search) ||
       String(user.role || '').toLowerCase().includes(search) ||
+      String(user.pin || '').toLowerCase().includes(search) ||
       String(user.employeeId || '').toLowerCase().includes(search) ||
       String(user.id || '').toLowerCase().includes(search);
 
@@ -114,8 +113,6 @@ function render() {
           <input id="newUserName" placeholder="Example: Bab S." autocomplete="off" />
         </label>
 
-        
-
         <label>
           <span>Role</span>
           <select id="newUserRole">
@@ -140,7 +137,32 @@ function render() {
       </div>
     </div>
 
-    <div class="admin-card user-management-panel">
+    <div class="admin-card user-add-panel" style="margin-top:16px;">
+      <div class="section-header">
+        <div>
+          <h2>Import Users</h2>
+          <div class="muted">Upload CSV: name, role, pin, status. PIN must be unique.</div>
+        </div>
+      </div>
+
+      <div class="user-add-grid">
+        <label class="full-span">
+          <span>CSV File</span>
+          <input id="userImportFile" type="file" accept=".csv,text/csv" />
+        </label>
+
+        <button id="importUsersBtn" class="button primary user-add-button">Import CSV</button>
+      </div>
+
+      <div class="muted" style="margin-top:12px;">
+        Example: <code>name,role,pin,status</code><br />
+        <code>Sally Smith,operator,12345,active</code>
+      </div>
+
+      <div id="importUsersResult" class="muted" style="margin-top:12px;"></div>
+    </div>
+
+    <div class="admin-card user-management-panel" style="margin-top:16px;">
       <div class="section-header">
         <div>
           <h2>User List</h2>
@@ -150,7 +172,7 @@ function render() {
       </div>
 
       <div class="user-toolbar">
-        <input id="userSearchInput" value="${escapeAttr(searchText)}" placeholder="Search users, roles, or employee ID..." />
+        <input id="userSearchInput" value="${escapeAttr(searchText)}" placeholder="Search users, roles, or PIN..." />
         <select id="userRoleFilter">
           <option value="all" ${roleFilter === 'all' ? 'selected' : ''}>All roles (${users.length})</option>
           ${ROLES.map((role) => `<option value="${role.value}" ${roleFilter === role.value ? 'selected' : ''}>${role.label} (${roleCount(role.value)})</option>`).join('')}
@@ -171,7 +193,6 @@ function renderUserRow(user) {
   const isEditing = editingUserId === user.id;
   const pinPreview = user.pin ? '••••' : 'No PIN';
   const roleClass = `role-${String(user.role || 'none').toLowerCase()}`;
-  const employeeIdPreview = user.employeeId ? `ID: ${escapeHtml(user.employeeId)}` : 'ID: —';
 
   if (!isEditing) {
     return `
@@ -180,7 +201,6 @@ function renderUserRow(user) {
           <strong>${escapeHtml(user.name || 'Unnamed User')}</strong>
           <span class="user-role-pill ${roleClass}">${roleLabel(user.role)}</span>
           <span class="status-pill ${status === 'active' ? 'running' : 'blocked'}">${status === 'active' ? 'Active' : 'Inactive'}</span>
-          <span class="muted user-pin-preview">${employeeIdPreview}</span>
           <span class="muted user-pin-preview">PIN: ${pinPreview}</span>
         </div>
 
@@ -205,11 +225,6 @@ function renderUserRow(user) {
         <label>
           <span>Name</span>
           <input data-user-name="${user.id}" value="${escapeAttr(user.name || '')}" placeholder="Name" />
-        </label>
-
-        <label>
-          <span>Employee ID</span>
-          <input data-user-employee-id="${user.id}" value="${escapeAttr(user.employeeId || '')}" inputmode="numeric" placeholder="Employee ID" />
         </label>
 
         <label>
@@ -244,6 +259,7 @@ function renderUserRow(user) {
 
 function wireEvents() {
   root.querySelector('#addUserBtn')?.addEventListener('click', handleAddUser);
+  root.querySelector('#importUsersBtn')?.addEventListener('click', handleImportUsers);
   root.querySelector('#refreshUsersBtn')?.addEventListener('click', loadAndRender);
 
   root.querySelector('#userSearchInput')?.addEventListener('input', (event) => {
@@ -309,7 +325,7 @@ async function handleAddUser() {
     return;
   }
 
-  const duplicateEmployeeId = users.some((user) => String(user.employeeId || '') === String(employeeId));
+  const duplicateEmployeeId = users.some((user) => String(user.employeeId || user.pin || '') === String(employeeId));
   if (duplicateEmployeeId) {
     alert('That PIN is already assigned to another user.');
     pinInput?.focus();
@@ -337,6 +353,81 @@ async function handleAddUser() {
   }
 }
 
+async function handleImportUsers() {
+  const fileInput = root.querySelector('#userImportFile');
+  const result = root.querySelector('#importUsersResult');
+  const file = fileInput?.files?.[0];
+
+  if (!file) {
+    alert('Choose a CSV file first.');
+    return;
+  }
+
+  try {
+    if (result) result.textContent = 'Reading CSV...';
+
+    const text = await readFileAsText(file);
+    const rows = parseCsv(text);
+
+    if (!rows.length) {
+      if (result) result.textContent = 'No rows found.';
+      return;
+    }
+
+    const existingPins = new Set(users.map((user) => String(user.employeeId || user.pin || '').trim()).filter(Boolean));
+    const incomingPins = new Set();
+
+    let imported = 0;
+    let skipped = 0;
+    const errors = [];
+
+    for (const row of rows) {
+      const user = normalizeImportRow(row);
+
+      if (!user.name || !user.pin) {
+        skipped += 1;
+        errors.push(`Skipped row: missing name or PIN.`);
+        continue;
+      }
+
+      if (existingPins.has(user.pin) || incomingPins.has(user.pin)) {
+        skipped += 1;
+        errors.push(`Skipped ${user.name}: duplicate PIN ${user.pin}.`);
+        continue;
+      }
+
+      incomingPins.add(user.pin);
+
+      await addDoc(collection(db, 'users'), {
+        name: user.name,
+        employeeId: user.pin,
+        pin: user.pin,
+        role: user.role,
+        status: user.status,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+
+      imported += 1;
+    }
+
+    await addAdminLog(`Imported ${imported} users from CSV`);
+
+    if (result) {
+      result.innerHTML = `
+        <strong>Import complete:</strong> ${imported} added, ${skipped} skipped.
+        ${errors.length ? `<br>${errors.slice(0, 6).map(escapeHtml).join('<br>')}${errors.length > 6 ? '<br>More skipped rows were hidden.' : ''}` : ''}
+      `;
+    }
+
+    await loadAndRender();
+  } catch (error) {
+    console.error('❌ Import users failed:', error);
+    if (result) result.textContent = 'Import failed. Check the CSV format.';
+    alert('Import failed.');
+  }
+}
+
 async function handleSaveUser(userId) {
   const nameInput = root.querySelector(`[data-user-name="${userId}"]`);
   const pinInput = root.querySelector(`[data-user-pin="${userId}"]`);
@@ -361,7 +452,7 @@ async function handleSaveUser(userId) {
     return;
   }
 
-  const duplicateEmployeeId = users.some((user) => user.id !== userId && String(user.employeeId || '') === String(employeeId));
+  const duplicateEmployeeId = users.some((user) => user.id !== userId && String(user.employeeId || user.pin || '') === String(employeeId));
   if (duplicateEmployeeId) {
     alert('That PIN is already assigned to another user.');
     pinInput?.focus();
@@ -408,6 +499,99 @@ async function handleDeleteUser(userId) {
     console.error('❌ Delete user failed:', error);
     alert('Delete failed.');
   }
+}
+
+function normalizeImportRow(row) {
+  const rawRole = String(row.role || row.Role || 'operator').trim();
+  const normalizedRole = normalizeRole(rawRole);
+  const rawStatus = String(row.status || row.Status || 'active').trim();
+  const pin = String(row.pin || row.PIN || row.employeeId || row.EmployeeID || row.employeeID || '').trim();
+
+  const firstName = String(row.firstName || row.FirstName || row.first_name || '').trim();
+  const lastName = String(row.lastName || row.LastName || row.last_name || '').trim();
+  const fullName = String(row.name || row.Name || '').trim();
+  const name = fullName || [firstName, lastName].filter(Boolean).join(' ').trim();
+
+  return {
+    name,
+    pin,
+    role: normalizedRole,
+    status: normalizeStatus(rawStatus)
+  };
+}
+
+function normalizeRole(value) {
+  const role = String(value || '').trim().toLowerCase().replaceAll(' ', '').replaceAll('_', '');
+
+  if (role === 'operator' || role === 'op') return 'operator';
+  if (role === 'diesetter' || role === 'die') return 'dieSetter';
+  if (role === 'supervisor' || role === 'super') return 'supervisor';
+  if (role === 'admin' || role === 'administrator') return 'admin';
+
+  return 'operator';
+}
+
+function normalizeStatus(value) {
+  const status = String(value || '').trim().toLowerCase();
+  return status === 'inactive' || status === 'disabled' ? 'inactive' : 'active';
+}
+
+function parseCsv(text) {
+  const rows = [];
+  const lines = String(text || '').replaceAll('\r\n', '\n').replaceAll('\r', '\n').split('\n').filter((line) => line.trim());
+
+  if (lines.length < 2) return rows;
+
+  const headers = splitCsvLine(lines[0]).map((header) => header.trim());
+
+  for (let i = 1; i < lines.length; i += 1) {
+    const values = splitCsvLine(lines[i]);
+    const row = {};
+
+    headers.forEach((header, index) => {
+      row[header] = values[index] || '';
+    });
+
+    rows.push(row);
+  }
+
+  return rows;
+}
+
+function splitCsvLine(line) {
+  const values = [];
+  let current = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i += 1) {
+    const char = line[i];
+    const next = line[i + 1];
+
+    if (char === '"' && inQuotes && next === '"') {
+      current += '"';
+      i += 1;
+    } else if (char === '"') {
+      inQuotes = !inQuotes;
+    } else if (char === ',' && !inQuotes) {
+      values.push(current.trim());
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+
+  values.push(current.trim());
+  return values;
+}
+
+function readFileAsText(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onload = () => resolve(reader.result || '');
+    reader.onerror = reject;
+    reader.readAsText(file);
+  });
 }
 
 function handleLiveSessionUpdate(userId, updates) {
