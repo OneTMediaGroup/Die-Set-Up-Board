@@ -1,6 +1,6 @@
 import { fetchUsersFromFirestore } from './firestore-users.js';
 import { setSession, getSession } from './store.js';
-import { setStoredSessionUser } from './session-user.js';
+import { setStoredSessionUser, clearStoredSessionUser } from './session-user.js';
 
 const LOCK_TIMEOUT = 10 * 60 * 1000;
 let lockTimer = null;
@@ -27,14 +27,10 @@ function resetTimer(allowedRoles) {
   if (lockTimer) clearTimeout(lockTimer);
 
   lockTimer = setTimeout(() => {
-
-  clearStoredSessionUser();
-
-  setSession(null);
-
-  showLoginModal(allowedRoles, true);
-
-}, LOCK_TIMEOUT);
+    clearStoredSessionUser();
+    setSession(null);
+    showLoginModal(allowedRoles, true);
+  }, LOCK_TIMEOUT);
 }
 
 async function showLoginModal(allowedRoles, isReauth = false) {
