@@ -135,9 +135,7 @@ function render(livePresses) {
       `;
     }).join('')}
 
-    <div class="muted" style="margin-top:16px; text-align:center;">
-      © One T Media Group
-    </div>
+    
   `;
 
   wireAreaClicks();

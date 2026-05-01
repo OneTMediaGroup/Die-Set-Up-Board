@@ -160,9 +160,7 @@ function render(livePresses) {
       </div>
     </div>
 
-    <div class="muted" style="margin-top:16px; text-align:center;">
-      © One T Media Group
-    </div>
+    
   `;
 
   wireQueueClicks(filteredPresses);

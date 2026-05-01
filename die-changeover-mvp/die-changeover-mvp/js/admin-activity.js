@@ -115,9 +115,7 @@ function render() {
       </div>
     </div>
 
-    <div class="muted" style="margin-top:16px; text-align:center;">
-      © One T Media Group
-    </div>
+    
   `;
 
   wireEvents();

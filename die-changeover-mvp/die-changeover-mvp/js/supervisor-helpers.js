@@ -53,7 +53,7 @@ export function areaLabel(press) {
 export function equipmentStatus(press) {
   const slots = getSlotsArray(press);
   const active = slots.filter((slot) => slot.partNumber).length;
-  const ready = slots.filter((slot) => normalizedSlotStatus(slot.status, 0, Boolean(slot.partNumber)) === 'ready').length;
+  const ready = slots.filter((slot, index) => normalizedSlotStatus(slot.status, index, Boolean(slot.partNumber)) === 'ready').length;
   const blocked = slots.filter((slot) => slot.status === 'blocked').length;
 
   if (press.isLocked) return { label: 'Locked', className: 'blocked', active, ready, blocked };
@@ -104,7 +104,6 @@ export function renderSlotCard(press, slot, slotIndex, selected = false, options
           </label>
           <div class="inline-slot-actions">
             <button type="button" class="button primary" data-save-slot="${press.id}" data-slot-index="${slotIndex}">Save</button>
-            
             ${!empty ? `<button type="button" class="button" data-clear-slot="${press.id}" data-slot-index="${slotIndex}">Clear</button>` : ''}
           </div>
         </div>
@@ -170,8 +169,7 @@ export function renderPressQueueRow(press, arg1 = '', arg2 = '', arg3 = false) {
       <button class="supervisor-equipment-summary-row" type="button" data-toggle-press="${press.id}">
         <span class="queue-chevron">${chevron}</span>
         <span class="queue-equipment-name">${equipmentLabel(press)}</span>
-        <span class="queue-slot-count">${slots.length}</span>
-        <span class="queue-equipment-meta">${areaLabel(press)} {press.shift || '1'}${press.isLocked ? ' · Locked' : ''}</span>
+        <span class="queue-equipment-meta">${areaLabel(press)}${press.isLocked ? ' · Locked' : ''}</span>
         <span class="status-pill queue-status ${status.className}">${status.label}</span>
         <span class="queue-active-count">${status.active} active setup${status.active === 1 ? '' : 's'}</span>
         ${options.showAddSetup ? `<span class="button queue-add-button" data-queue-add="${press.id}">+ Add Setup</span>` : ''}
