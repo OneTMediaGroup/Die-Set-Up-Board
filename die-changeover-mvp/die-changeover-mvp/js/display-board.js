@@ -166,49 +166,17 @@ function renderDisplayBoard() {
   if (!boardContent) return;
 
   if (!visiblePresses.length) {
-    boardContent.innerHTML = `<div class="display-empty-state">No equipment found for this area.</div>`;
+    boardContent.innerHTML = `<div class="display-empty-state">No equipment found.</div>`;
     return;
   }
 
-  const grouped = new Map();
+  const sortedPresses = [...visiblePresses].sort(sortDisplayPresses);
 
-  visiblePresses.forEach((press) => {
-    const key = areaKey(press);
-    if (!grouped.has(key)) {
-      grouped.set(key, {
-        label: areaLabel(press),
-        color: press.areaColor || '#2563eb',
-        presses: []
-      });
-    }
-    grouped.get(key).presses.push(press);
-  });
-
-  const sections = [...grouped.values()].sort((a, b) => a.label.localeCompare(b.label));
-
-  boardContent.innerHTML = sections.map((section) => {
-    const sortedPresses = [...section.presses].sort(sortDisplayPresses);
-    const areaActive = sortedPresses.reduce(
-      (count, press) => count + getSlotsArray(press).filter((slot) => slot.partNumber).length,
-      0
-    );
-
-    return `
-      <section class="display-area-section" style="--area-color:${section.color};">
-        <div class="display-area-header">
-          <div>
-            <h2>${section.label}</h2>
-            <p>${sortedPresses.length} equipment · ${areaActive} active setups</p>
-          </div>
-          <span class="display-area-chip">Live</span>
-        </div>
-
-        <div class="display-equipment-list">
-          ${sortedPresses.map((press) => renderEquipmentRow(press)).join('')}
-        </div>
-      </section>
-    `;
-  }).join('');
+  boardContent.innerHTML = `
+    <div class="display-flat-list">
+      ${sortedPresses.map((press) => renderEquipmentRow(press)).join('')}
+    </div>
+  `;
 }
 
 function renderEquipmentRow(press) {
