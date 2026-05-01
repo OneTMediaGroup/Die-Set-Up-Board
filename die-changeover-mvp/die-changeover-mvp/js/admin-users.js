@@ -114,10 +114,7 @@ function render() {
           <input id="newUserName" placeholder="Example: Bab S." autocomplete="off" />
         </label>
 
-        <label>
-          <span>Employee ID</span>
-          <input id="newUserEmployeeId" inputmode="numeric" placeholder="Example: 12345" autocomplete="off" />
-        </label>
+        
 
         <label>
           <span>Role</span>
