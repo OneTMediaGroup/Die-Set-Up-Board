@@ -1,17 +1,13 @@
+import { initStore, getSession } from './store.js';
 import { requireRoleAccess } from './auth-lock.js';
-
-await requireRoleAccess(['supervisor', 'admin']);
-
-import { initStore, getSession, setSession } from './store.js';
-import { fetchUsersFromFirestore } from './firestore-users.js';
-import { getStoredSessionUser, setStoredSessionUser } from './session-user.js';
-
 
 import { mountQueueTool } from './supervisor-queue.js';
 import { mountAreaViewTool } from './supervisor-areas.js';
 import { mountSupervisorActivityTool } from './supervisor-activity.js';
 
 initStore();
+
+await requireRoleAccess(['supervisor', 'admin']);
 
 const currentUserSupervisor = document.getElementById('currentUserSupervisor');
 const supervisorContent = document.getElementById('supervisorContent');
@@ -22,9 +18,7 @@ let cleanupCurrentTool = null;
 init();
 
 async function init() {
-  await bootstrapSession();
-
- 
+  renderCurrentUser();
 
   toolButtons.forEach((button) => {
     button.addEventListener('click', () => selectTool(button.dataset.supervisorTool));
@@ -33,42 +27,12 @@ async function init() {
   await selectTool('queue');
 }
 
-async function bootstrapSession() {
-  const storedUser = getStoredSessionUser();
-
-  if (storedUser && (storedUser.role === 'supervisor' || storedUser.role === 'admin')) {
-    setSession(storedUser);
-    renderCurrentUser();
-    return;
-  }
-
-  try {
-    const users = await fetchUsersFromFirestore();
-    const defaultUser =
-      users.find((user) => user.role === 'supervisor') ||
-      users.find((user) => user.role === 'admin') || {
-        id: 'u2',
-        name: 'Sully T.',
-        role: 'supervisor',
-        status: 'active'
-      };
-
-    setStoredSessionUser(defaultUser);
-    setSession(defaultUser);
-  } catch (error) {
-    console.error('❌ Failed loading supervisor users:', error);
-    setSession({ id: 'u2', name: 'Sully T.', role: 'supervisor', status: 'active' });
-  }
-
-  renderCurrentUser();
-}
-
 function renderCurrentUser() {
-  const session = getSession() || getStoredSessionUser();
+  const session = getSession();
   if (!currentUserSupervisor) return;
 
   const statusText = session?.status && session.status !== 'active' ? ` · ${session.status}` : '';
-  currentUserSupervisor.textContent = session ? `${session.name} · ${session.role}${statusText}` : 'No active user';
+  currentUserSupervisor.textContent = session ? `${session.name} · ${session.role}${statusText}` : 'Locked';
 }
 
 async function selectTool(toolName) {

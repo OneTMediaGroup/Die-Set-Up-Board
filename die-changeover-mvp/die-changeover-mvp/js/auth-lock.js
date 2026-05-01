@@ -1,53 +1,35 @@
 import { fetchUsersFromFirestore } from './firestore-users.js';
 import { setSession, getSession } from './store.js';
+import { setStoredSessionUser } from './session-user.js';
 
-const LOCK_TIMEOUT = 10 * 60 * 1000; // 10 minutes
+const LOCK_TIMEOUT = 10 * 60 * 1000;
 let lockTimer = null;
-let lastActivity = Date.now();
-
-/* ============================= */
-/* PUBLIC ENTRY */
-/* ============================= */
 
 export async function requireRoleAccess(allowedRoles = []) {
   const session = getSession();
 
-  if (!session || !allowedRoles.includes(session.role)) {
+  if (!session || !allowedRoles.includes(session.role) || session.status === 'inactive') {
     await showLoginModal(allowedRoles);
   }
 
-  startAutoLock();
+  startAutoLock(allowedRoles);
 }
 
-/* ============================= */
-/* AUTO LOCK SYSTEM */
-/* ============================= */
-
-function startAutoLock() {
-  resetTimer();
+function startAutoLock(allowedRoles) {
+  resetTimer(allowedRoles);
 
   ['click', 'touchstart', 'keydown'].forEach((event) => {
-    window.addEventListener(event, resetTimer, true);
+    window.addEventListener(event, () => resetTimer(allowedRoles), true);
   });
 }
 
-function resetTimer() {
-  lastActivity = Date.now();
-
+function resetTimer(allowedRoles) {
   if (lockTimer) clearTimeout(lockTimer);
 
   lockTimer = setTimeout(() => {
-    lockScreen();
+    showLoginModal(allowedRoles, true);
   }, LOCK_TIMEOUT);
 }
-
-function lockScreen() {
-  showLoginModal(['admin', 'supervisor', 'dieSetter'], true);
-}
-
-/* ============================= */
-/* LOGIN MODAL */
-/* ============================= */
 
 async function showLoginModal(allowedRoles, isReauth = false) {
   let modal = document.getElementById('globalLoginModal');
@@ -60,12 +42,15 @@ async function showLoginModal(allowedRoles, isReauth = false) {
     modal.innerHTML = `
       <div class="modal-content">
         <h3>${isReauth ? 'Session Locked' : 'Login Required'}</h3>
-        <p class="muted">Enter your name and PIN</p>
+        <p class="muted">Select your name and enter PIN.</p>
 
-        <select id="loginUser"></select>
-        <input id="loginPin" type="password" placeholder="Enter PIN" />
+        <label class="muted">User</label>
+        <select id="loginUser" style="margin-top:6px; width:100%;"></select>
 
-        <div id="loginError" class="error-text"></div>
+        <label class="muted" style="margin-top:12px; display:block;">PIN</label>
+        <input id="loginPin" type="password" inputmode="numeric" placeholder="Enter PIN" style="margin-top:6px; width:100%;" />
+
+        <div id="loginError" class="error-text" style="display:none;"></div>
 
         <div class="modal-actions">
           <button id="loginConfirm" class="button primary">Login</button>
@@ -79,34 +64,49 @@ async function showLoginModal(allowedRoles, isReauth = false) {
   modal.classList.remove('hidden');
 
   const users = await fetchUsersFromFirestore();
-
-  const validUsers = users.filter(
-    (u) => allowedRoles.includes(u.role) && u.pin
-  );
+  const validUsers = users.filter((user) => {
+    const active = user.status === 'active' || user.isActive === true || !user.status;
+    return allowedRoles.includes(user.role) && active && user.pin;
+  });
 
   const select = document.getElementById('loginUser');
   const pinInput = document.getElementById('loginPin');
   const error = document.getElementById('loginError');
+  const confirmBtn = document.getElementById('loginConfirm');
 
-  select.innerHTML = validUsers
-    .map((u) => `<option value="${u.id}">${u.name} (${u.role})</option>`)
-    .join('');
+  select.innerHTML = validUsers.length
+    ? validUsers.map((user) => `<option value="${user.id}">${user.name} (${user.role})</option>`).join('')
+    : `<option value="">No authorized users found</option>`;
 
   pinInput.value = '';
   error.textContent = '';
+  error.style.display = 'none';
 
-  document.getElementById('loginConfirm').onclick = () => {
-    const user = validUsers.find((u) => u.id === select.value);
-    const pin = pinInput.value.trim();
+  setTimeout(() => pinInput.focus(), 100);
 
-    if (!user || String(user.pin) !== pin) {
-      error.textContent = 'Invalid PIN';
-      return;
-    }
+  return new Promise((resolve) => {
+    const attemptLogin = () => {
+      const user = validUsers.find((item) => item.id === select.value);
+      const pin = pinInput.value.trim();
 
-    setSession(user);
-    modal.classList.add('hidden');
+      if (!user || String(user.pin) !== pin) {
+        error.textContent = 'Invalid PIN';
+        error.style.display = 'block';
+        pinInput.focus();
+        return;
+      }
 
-    resetTimer(); // 🔥 restart timer after login
-  };
+      setSession(user);
+      setStoredSessionUser(user);
+      modal.classList.add('hidden');
+      resetTimer(allowedRoles);
+      resolve(user);
+    };
+
+    confirmBtn.onclick = attemptLogin;
+
+    pinInput.onkeydown = (event) => {
+      if (event.key === 'Enter') attemptLogin();
+    };
+  });
 }
