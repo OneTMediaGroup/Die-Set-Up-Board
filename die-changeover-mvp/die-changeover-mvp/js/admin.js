@@ -3,7 +3,8 @@ import { requireRoleAccess } from './auth-lock.js';
 await requireRoleAccess(['admin']);
 
 
-
+import { clearStoredSessionUser } from './session-user.js';
+import { setSession } from './store.js';
 import { getSession } from './store.js';
 import { getStoredSessionUser } from './session-user.js';
 import { mountEquipmentTool } from './admin-equipment.js';
@@ -19,6 +20,13 @@ const toolButtons = document.querySelectorAll('[data-admin-tool]');
 let cleanupCurrentTool = null;
 
 init();
+
+
+document.getElementById('logoutBtn')?.addEventListener('click', () => {
+  clearStoredSessionUser();
+  setSession(null);
+  location.reload();
+});
 
 async function init() {
   renderCurrentAdminUser();

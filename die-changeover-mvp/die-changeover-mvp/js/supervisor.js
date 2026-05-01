@@ -1,5 +1,8 @@
 import { initStore, getSession } from './store.js';
 import { requireRoleAccess } from './auth-lock.js';
+import { clearStoredSessionUser } from './session-user.js';
+import { setSession } from './store.js';
+
 
 import { mountQueueTool } from './supervisor-queue.js';
 import { mountAreaViewTool } from './supervisor-areas.js';
@@ -16,6 +19,13 @@ const toolButtons = document.querySelectorAll('[data-supervisor-tool]');
 let cleanupCurrentTool = null;
 
 init();
+
+document.getElementById('logoutBtn')?.addEventListener('click', () => {
+  clearStoredSessionUser();
+  setSession(null);
+  location.reload();
+});
+
 
 async function init() {
   renderCurrentUser();

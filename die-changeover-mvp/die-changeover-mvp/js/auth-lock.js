@@ -27,8 +27,14 @@ function resetTimer(allowedRoles) {
   if (lockTimer) clearTimeout(lockTimer);
 
   lockTimer = setTimeout(() => {
-    showLoginModal(allowedRoles, true);
-  }, LOCK_TIMEOUT);
+
+  clearStoredSessionUser();
+
+  setSession(null);
+
+  showLoginModal(allowedRoles, true);
+
+}, LOCK_TIMEOUT);
 }
 
 async function showLoginModal(allowedRoles, isReauth = false) {
