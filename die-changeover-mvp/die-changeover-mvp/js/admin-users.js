@@ -104,7 +104,7 @@ function render() {
       <div class="section-header">
         <div>
           <h2>Add User</h2>
-          <div class="muted">Employee ID is used for Ready. PIN is only needed for Complete + Shift roles.</div>
+          <div class="muted">PIN is used for Ready. PIN is also used for Complete + Shift roles.</div>
         </div>
       </div>
 
@@ -287,13 +287,13 @@ function wireEvents() {
 
 async function handleAddUser() {
   const nameInput = root.querySelector('#newUserName');
-  const employeeIdInput = root.querySelector('#newUserEmployeeId');
+
   const pinInput = root.querySelector('#newUserPin');
   const roleInput = root.querySelector('#newUserRole');
   const statusInput = root.querySelector('#newUserStatus');
 
   const name = nameInput?.value.trim() || '';
-  const employeeId = employeeIdInput?.value.trim() || '';
+  const employeeId = pin;
   const pin = pinInput?.value.trim() || '';
   const role = roleInput?.value || 'operator';
   const status = statusInput?.value || 'active';
@@ -304,11 +304,7 @@ async function handleAddUser() {
     return;
   }
 
-  if (!employeeId) {
-    alert('Employee ID is required.');
-    employeeIdInput?.focus();
-    return;
-  }
+  
 
   const duplicateEmployeeId = users.some((user) => String(user.employeeId || '') === String(employeeId));
   if (duplicateEmployeeId) {
@@ -352,7 +348,7 @@ async function handleSaveUser(userId) {
   const statusInput = root.querySelector(`[data-user-status="${userId}"]`);
 
   const name = nameInput?.value.trim() || '';
-  const employeeId = employeeIdInput?.value.trim() || '';
+const employeeId = pin;
   const pin = pinInput?.value.trim() || '';
   const role = roleInput?.value || 'operator';
   const status = statusInput?.value || 'active';
