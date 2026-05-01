@@ -104,7 +104,7 @@ function render() {
       <div class="section-header">
         <div>
           <h2>Add User</h2>
-          <div class="muted">Operators use Employee ID for Ready. Die setters, supervisors, and admins need a PIN for Complete + Shift.</div>
+          <div class="muted">Employee ID is used for Ready. PIN is only needed for Complete + Shift roles.</div>
         </div>
       </div>
 
@@ -128,7 +128,7 @@ function render() {
 
         <label>
           <span>PIN</span>
-          <input id="newUserPin" type="password" inputmode="numeric" placeholder="4 digit PIN if required" autocomplete="new-password" />
+          <input id="newUserPin" type="password" inputmode="numeric" placeholder="PIN 1–9999 if required" autocomplete="new-password" />
         </label>
 
         <label>
