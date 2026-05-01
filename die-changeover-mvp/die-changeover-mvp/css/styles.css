@@ -1799,3 +1799,27 @@ input, textarea, select {
   font-size: 0.6rem !important;
   padding: 3px 5px !important;
 }
+
+/* Supervisor row spacing fix */
+.supervisor-equipment-summary-row {
+  grid-template-columns: 34px minmax(190px, 1fr) minmax(140px, 0.8fr) minmax(150px, auto) minmax(130px, auto) !important;
+  column-gap: 18px !important;
+}
+
+.queue-equipment-meta {
+  min-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.queue-status.status-pill {
+  justify-self: end;
+  min-width: 150px;
+  white-space: nowrap;
+}
+
+.queue-active-count {
+  justify-self: end;
+  white-space: nowrap;
+}
