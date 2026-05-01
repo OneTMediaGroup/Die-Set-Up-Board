@@ -18,16 +18,20 @@ let searchText = '';
 let roleFilter = 'all';
 
 const ROLES = [
+  { value: 'operator', label: 'Operator' },
   { value: 'dieSetter', label: 'Die Setter' },
   { value: 'supervisor', label: 'Supervisor' },
   { value: 'admin', label: 'Admin' }
 ];
 
 const ROLE_ORDER = {
+  operator: 0,
   dieSetter: 1,
   supervisor: 2,
   admin: 3
 };
+
+const PIN_REQUIRED_ROLES = ['dieSetter', 'supervisor', 'admin'];
 
 export async function mountUsersTool(container) {
   root = container;
@@ -48,8 +52,8 @@ async function loadAndRender() {
 
 function sortUsers() {
   users = [...users].sort((a, b) => {
-    const roleA = ROLE_ORDER[a.role] || 99;
-    const roleB = ROLE_ORDER[b.role] || 99;
+    const roleA = ROLE_ORDER[a.role] ?? 99;
+    const roleB = ROLE_ORDER[b.role] ?? 99;
     if (roleA !== roleB) return roleA - roleB;
     return String(a.name || '').localeCompare(String(b.name || ''), undefined, { numeric: true });
   });
@@ -70,6 +74,7 @@ function filteredUsers() {
     const matchesSearch = !search ||
       String(user.name || '').toLowerCase().includes(search) ||
       String(user.role || '').toLowerCase().includes(search) ||
+      String(user.employeeId || '').toLowerCase().includes(search) ||
       String(user.id || '').toLowerCase().includes(search);
 
     return matchesRole && matchesSearch;
@@ -99,7 +104,7 @@ function render() {
       <div class="section-header">
         <div>
           <h2>Add User</h2>
-          <div class="muted">Die setters need a PIN for Complete + Shift.</div>
+          <div class="muted">Operators use Employee ID for Ready. Die setters, supervisors, and admins need a PIN for Complete + Shift.</div>
         </div>
       </div>
 
@@ -110,15 +115,20 @@ function render() {
         </label>
 
         <label>
+          <span>Employee ID</span>
+          <input id="newUserEmployeeId" inputmode="numeric" placeholder="Example: 12345" autocomplete="off" />
+        </label>
+
+        <label>
           <span>Role</span>
           <select id="newUserRole">
-            ${ROLES.map((role) => `<option value="${role.value}" ${role.value === 'dieSetter' ? 'selected' : ''}>${role.label}</option>`).join('')}
+            ${ROLES.map((role) => `<option value="${role.value}" ${role.value === 'operator' ? 'selected' : ''}>${role.label}</option>`).join('')}
           </select>
         </label>
 
         <label>
           <span>PIN</span>
-          <input id="newUserPin" type="password" inputmode="numeric" placeholder="4 digit PIN" autocomplete="new-password" />
+          <input id="newUserPin" type="password" inputmode="numeric" placeholder="4 digit PIN if required" autocomplete="new-password" />
         </label>
 
         <label>
@@ -133,7 +143,7 @@ function render() {
       </div>
     </div>
 
-       <div class="admin-card user-management-panel">
+    <div class="admin-card user-management-panel">
       <div class="section-header">
         <div>
           <h2>User List</h2>
@@ -143,7 +153,7 @@ function render() {
       </div>
 
       <div class="user-toolbar">
-        <input id="userSearchInput" value="${escapeAttr(searchText)}" placeholder="Search users..." />
+        <input id="userSearchInput" value="${escapeAttr(searchText)}" placeholder="Search users, roles, or employee ID..." />
         <select id="userRoleFilter">
           <option value="all" ${roleFilter === 'all' ? 'selected' : ''}>All roles (${users.length})</option>
           ${ROLES.map((role) => `<option value="${role.value}" ${roleFilter === role.value ? 'selected' : ''}>${role.label} (${roleCount(role.value)})</option>`).join('')}
@@ -154,8 +164,6 @@ function render() {
         ${visibleUsers.length ? visibleUsers.map(renderUserRow).join('') : `<div class="muted user-empty-state">No users match this search.</div>`}
       </div>
     </div>
-
-    
   `;
 
   wireEvents();
@@ -166,6 +174,7 @@ function renderUserRow(user) {
   const isEditing = editingUserId === user.id;
   const pinPreview = user.pin ? '••••' : 'No PIN';
   const roleClass = `role-${String(user.role || 'none').toLowerCase()}`;
+  const employeeIdPreview = user.employeeId ? `ID: ${escapeHtml(user.employeeId)}` : 'ID: —';
 
   if (!isEditing) {
     return `
@@ -174,6 +183,7 @@ function renderUserRow(user) {
           <strong>${escapeHtml(user.name || 'Unnamed User')}</strong>
           <span class="user-role-pill ${roleClass}">${roleLabel(user.role)}</span>
           <span class="status-pill ${status === 'active' ? 'running' : 'blocked'}">${status === 'active' ? 'Active' : 'Inactive'}</span>
+          <span class="muted user-pin-preview">${employeeIdPreview}</span>
           <span class="muted user-pin-preview">PIN: ${pinPreview}</span>
         </div>
 
@@ -198,6 +208,11 @@ function renderUserRow(user) {
         <label>
           <span>Name</span>
           <input data-user-name="${user.id}" value="${escapeAttr(user.name || '')}" placeholder="Name" />
+        </label>
+
+        <label>
+          <span>Employee ID</span>
+          <input data-user-employee-id="${user.id}" value="${escapeAttr(user.employeeId || '')}" inputmode="numeric" placeholder="Employee ID" />
         </label>
 
         <label>
@@ -275,13 +290,15 @@ function wireEvents() {
 
 async function handleAddUser() {
   const nameInput = root.querySelector('#newUserName');
+  const employeeIdInput = root.querySelector('#newUserEmployeeId');
   const pinInput = root.querySelector('#newUserPin');
   const roleInput = root.querySelector('#newUserRole');
   const statusInput = root.querySelector('#newUserStatus');
 
   const name = nameInput?.value.trim() || '';
+  const employeeId = employeeIdInput?.value.trim() || '';
   const pin = pinInput?.value.trim() || '';
-  const role = roleInput?.value || 'dieSetter';
+  const role = roleInput?.value || 'operator';
   const status = statusInput?.value || 'active';
 
   if (!name) {
@@ -290,8 +307,21 @@ async function handleAddUser() {
     return;
   }
 
-  if (role === 'dieSetter' && !pin) {
-    alert('PIN is required for die setters.');
+  if (!employeeId) {
+    alert('Employee ID is required.');
+    employeeIdInput?.focus();
+    return;
+  }
+
+  const duplicateEmployeeId = users.some((user) => String(user.employeeId || '') === String(employeeId));
+  if (duplicateEmployeeId) {
+    alert('That Employee ID is already assigned to another user.');
+    employeeIdInput?.focus();
+    return;
+  }
+
+  if (PIN_REQUIRED_ROLES.includes(role) && !pin) {
+    alert('PIN is required for die setters, supervisors, and admins.');
     pinInput?.focus();
     return;
   }
@@ -299,6 +329,7 @@ async function handleAddUser() {
   try {
     await addDoc(collection(db, 'users'), {
       name,
+      employeeId,
       pin,
       role,
       status,
@@ -318,13 +349,15 @@ async function handleAddUser() {
 
 async function handleSaveUser(userId) {
   const nameInput = root.querySelector(`[data-user-name="${userId}"]`);
+  const employeeIdInput = root.querySelector(`[data-user-employee-id="${userId}"]`);
   const pinInput = root.querySelector(`[data-user-pin="${userId}"]`);
   const roleInput = root.querySelector(`[data-user-role="${userId}"]`);
   const statusInput = root.querySelector(`[data-user-status="${userId}"]`);
 
   const name = nameInput?.value.trim() || '';
+  const employeeId = employeeIdInput?.value.trim() || '';
   const pin = pinInput?.value.trim() || '';
-  const role = roleInput?.value || 'dieSetter';
+  const role = roleInput?.value || 'operator';
   const status = statusInput?.value || 'active';
 
   if (!name) {
@@ -333,8 +366,21 @@ async function handleSaveUser(userId) {
     return;
   }
 
-  if (role === 'dieSetter' && !pin) {
-    alert('PIN is required for die setters.');
+  if (!employeeId) {
+    alert('Employee ID is required.');
+    employeeIdInput?.focus();
+    return;
+  }
+
+  const duplicateEmployeeId = users.some((user) => user.id !== userId && String(user.employeeId || '') === String(employeeId));
+  if (duplicateEmployeeId) {
+    alert('That Employee ID is already assigned to another user.');
+    employeeIdInput?.focus();
+    return;
+  }
+
+  if (PIN_REQUIRED_ROLES.includes(role) && !pin) {
+    alert('PIN is required for die setters, supervisors, and admins.');
     pinInput?.focus();
     return;
   }
@@ -342,12 +388,13 @@ async function handleSaveUser(userId) {
   try {
     await updateUserInFirestore(userId, {
       name,
+      employeeId,
       pin,
       role,
       status
     });
 
-    handleLiveSessionUpdate(userId, { name, pin, role, status });
+    handleLiveSessionUpdate(userId, { name, employeeId, pin, role, status });
     await addAdminLog(`Updated user ${name}`);
     editingUserId = null;
     await loadAndRender();
