@@ -74,6 +74,7 @@ function filteredUsers() {
       String(user.role || '').toLowerCase().includes(search) ||
       String(user.pin || '').toLowerCase().includes(search) ||
       String(user.employeeId || '').toLowerCase().includes(search) ||
+      String(user.badgeCode || '').toLowerCase().includes(search) ||
       String(user.id || '').toLowerCase().includes(search);
 
     return matchesRole && matchesSearch;
@@ -208,6 +209,7 @@ function renderUserRow(user) {
           <span class="user-role-pill ${roleClass}">${roleLabel(user.role)}</span>
           <span class="status-pill ${status === 'active' ? 'running' : 'blocked'}">${status === 'active' ? 'Active' : 'Inactive'}</span>
           <span class="muted user-pin-preview">PIN: ${pinPreview}</span>
+          ${user.badgeCode ? `<span class="muted user-pin-preview">Badge: ${escapeHtml(user.badgeCode)}</span>` : ''}
         </div>
 
         <div class="user-row-actions">
@@ -389,14 +391,16 @@ async function handleImportUsers() {
       return;
     }
 
-if (!confirm(`Import ${rows.length} users?\n\nDuplicates and bad rows will be skipped.`)) {
-  if (result) result.textContent = 'Import cancelled.';
-  return;
-}
-
+    if (!confirm(`Import ${rows.length} users?\n\nDuplicates and bad rows will be skipped.`)) {
+      if (result) result.textContent = 'Import cancelled.';
+      return;
+    }
 
     const existingPins = new Set(users.map((user) => String(user.employeeId || user.pin || '').trim()).filter(Boolean));
+    const existingBadges = new Set(users.map((user) => String(user.badgeCode || '').trim()).filter(Boolean));
+
     const incomingPins = new Set();
+    const incomingBadges = new Set();
 
     let imported = 0;
     let skipped = 0;
@@ -417,12 +421,20 @@ if (!confirm(`Import ${rows.length} users?\n\nDuplicates and bad rows will be sk
         continue;
       }
 
+      if (user.badgeCode && (existingBadges.has(user.badgeCode) || incomingBadges.has(user.badgeCode))) {
+        skipped += 1;
+        errors.push(`Skipped ${user.name}: duplicate Badge Code.`);
+        continue;
+      }
+
       incomingPins.add(user.pin);
+      if (user.badgeCode) incomingBadges.add(user.badgeCode);
 
       await addDoc(collection(db, 'users'), {
         name: user.name,
         employeeId: user.pin,
         pin: user.pin,
+        badgeCode: user.badgeCode,
         role: user.role,
         status: user.status,
         createdAt: new Date().toISOString(),
@@ -452,11 +464,13 @@ if (!confirm(`Import ${rows.length} users?\n\nDuplicates and bad rows will be sk
 async function handleSaveUser(userId) {
   const nameInput = root.querySelector(`[data-user-name="${userId}"]`);
   const pinInput = root.querySelector(`[data-user-pin="${userId}"]`);
+  const badgeCodeInput = root.querySelector(`[data-user-badge-code="${userId}"]`);
   const roleInput = root.querySelector(`[data-user-role="${userId}"]`);
   const statusInput = root.querySelector(`[data-user-status="${userId}"]`);
 
   const name = nameInput?.value.trim() || '';
   const pin = pinInput?.value.trim() || '';
+  const badgeCode = badgeCodeInput?.value.trim() || '';
   const employeeId = pin;
   const role = roleInput?.value || 'operator';
   const status = statusInput?.value || 'active';
@@ -473,10 +487,17 @@ async function handleSaveUser(userId) {
     return;
   }
 
-  const duplicateEmployeeId = users.some((user) => user.id !== userId && String(user.employeeId || user.pin || '') === String(employeeId));
-  if (duplicateEmployeeId) {
+  const duplicatePin = users.some((user) => user.id !== userId && String(user.employeeId || user.pin || '') === String(employeeId));
+  if (duplicatePin) {
     alert('That PIN is already assigned to another user.');
     pinInput?.focus();
+    return;
+  }
+
+  const duplicateBadge = badgeCode && users.some((user) => user.id !== userId && String(user.badgeCode || '') === String(badgeCode));
+  if (duplicateBadge) {
+    alert('That Badge Code is already assigned to another user.');
+    badgeCodeInput?.focus();
     return;
   }
 
@@ -485,11 +506,12 @@ async function handleSaveUser(userId) {
       name,
       employeeId,
       pin,
+      badgeCode,
       role,
       status
     });
 
-    handleLiveSessionUpdate(userId, { name, employeeId, pin, role, status });
+    handleLiveSessionUpdate(userId, { name, employeeId, pin, badgeCode, role, status });
     await addAdminLog(`Updated user ${name}`);
     editingUserId = null;
     await loadAndRender();
@@ -526,7 +548,20 @@ function normalizeImportRow(row) {
   const rawRole = String(row.role || row.Role || 'operator').trim();
   const normalizedRole = normalizeRole(rawRole);
   const rawStatus = String(row.status || row.Status || 'active').trim();
+
   const pin = String(row.pin || row.PIN || row.employeeId || row.EmployeeID || row.employeeID || '').trim();
+
+  const badgeCode = String(
+    row.badgeCode ||
+    row.BadgeCode ||
+    row.badge ||
+    row.Badge ||
+    row.scanCode ||
+    row.ScanCode ||
+    row.barcode ||
+    row.Barcode ||
+    ''
+  ).trim();
 
   const firstName = String(row.firstName || row.FirstName || row.first_name || '').trim();
   const lastName = String(row.lastName || row.LastName || row.last_name || '').trim();
@@ -536,6 +571,7 @@ function normalizeImportRow(row) {
   return {
     name,
     pin,
+    badgeCode,
     role: normalizedRole,
     status: normalizeStatus(rawStatus)
   };

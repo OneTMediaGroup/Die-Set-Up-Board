@@ -31,6 +31,24 @@ wireDialog();
 loadDieSetters();
 startPressWatcher();
 
+function matchesUserCode(user, enteredValue) {
+  const value = String(enteredValue || '').trim();
+  if (!value) return false;
+
+  return [
+    user.employeeId,
+    user.pin,
+    user.badgeCode,
+    user.badge,
+    user.scanCode,
+    user.barcode
+  ].some((item) => String(item || '').trim() === value);
+}
+
+
+
+
+
 async function loadDieSetters() {
   try {
     const users = await fetchUsersFromFirestore();
@@ -198,7 +216,7 @@ function ensureReadyModal() {
         <h3>Ready for Changeover</h3>
         <p class="muted" style="margin-bottom:14px;">Enter Employee ID.</p>
 
-        <input id="readyEmployeeId" type="number" placeholder="Enter ID" style="width:100%;" />
+        <input id="readyEmployeeId" type="text" placeholder="Scan badge or enter PIN" autocomplete="off" style="width:100%;" />
         <div id="readyEmployeeName" class="muted" style="margin-top:8px;"></div>
 
         <div class="modal-actions">
@@ -215,7 +233,7 @@ function ensureReadyModal() {
 
   document.getElementById('readyEmployeeId').addEventListener('input', (e) => {
     const val = e.target.value;
-    const user = dieSetters.find(u => String(u.employeeId) === val);
+    const user = dieSetters.find((u) => matchesUserCode(u, val));
 
     document.getElementById('readyEmployeeName').textContent =
       user ? `Confirm: ${user.name}` : '';
@@ -526,10 +544,10 @@ async function handleReadyForChangeover(pressId, slotIndex) {
 
   confirmBtn.onclick = async () => {
     const enteredId = input.value.trim();
-    const user = dieSetters.find(u => String(u.employeeId) === enteredId);
+    const user = dieSetters.find((u) => matchesUserCode(u, enteredId));
 
     if (!user) {
-      alert('Invalid Employee ID');
+      alert('Invalid badge / PIN');
       return;
     }
 
