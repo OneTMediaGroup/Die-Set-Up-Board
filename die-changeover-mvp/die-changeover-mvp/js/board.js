@@ -169,7 +169,7 @@ async function confirmDieSetterLogin() {
     return;
   }
 
-  if (!matchesUserCode(user, pin)) { {
+  if (!matchesUserCode(user, pin)) {
     showLoginError('Invalid PIN.');
     pinInput?.focus();
     return;
