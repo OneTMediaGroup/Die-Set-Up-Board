@@ -151,7 +151,10 @@ function render() {
           <input id="userImportFile" type="file" accept=".csv,text/csv" />
         </label>
 
-        <button id="importUsersBtn" class="button primary user-add-button">Import CSV</button>
+        <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:end;">
+  <button id="downloadUserTemplateBtn" class="button user-add-button">Download Template</button>
+  <button id="importUsersBtn" class="button primary user-add-button">Import CSV</button>
+</div>
       </div>
 
       <div class="muted" style="margin-top:12px;">
@@ -258,9 +261,10 @@ function renderUserRow(user) {
 }
 
 function wireEvents() {
-  root.querySelector('#addUserBtn')?.addEventListener('click', handleAddUser);
-  root.querySelector('#importUsersBtn')?.addEventListener('click', handleImportUsers);
-  root.querySelector('#refreshUsersBtn')?.addEventListener('click', loadAndRender);
+ root.querySelector('#addUserBtn')?.addEventListener('click', handleAddUser);
+root.querySelector('#importUsersBtn')?.addEventListener('click', handleImportUsers);
+root.querySelector('#downloadUserTemplateBtn')?.addEventListener('click', downloadUserTemplateCsv);
+root.querySelector('#refreshUsersBtn')?.addEventListener('click', loadAndRender);
 
   root.querySelector('#userSearchInput')?.addEventListener('input', (event) => {
     searchText = event.target.value;
@@ -373,6 +377,12 @@ async function handleImportUsers() {
       if (result) result.textContent = 'No rows found.';
       return;
     }
+
+if (!confirm(`Import ${rows.length} users?\n\nDuplicates and bad rows will be skipped.`)) {
+  if (result) result.textContent = 'Import cancelled.';
+  return;
+}
+
 
     const existingPins = new Set(users.map((user) => String(user.employeeId || user.pin || '').trim()).filter(Boolean));
     const incomingPins = new Set();
@@ -593,6 +603,30 @@ function readFileAsText(file) {
     reader.readAsText(file);
   });
 }
+function downloadUserTemplateCsv() {
+  const csv = [
+    'name,role,pin,status',
+    'Sally Smith,operator,1001,active',
+    'Bob Jones,dieSetter,1002,active',
+    'Mike Carter,supervisor,1003,active',
+    'Lisa Brown,admin,1004,active'
+  ].join('\n');
+
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+
+  link.href = url;
+  link.download = 'user-import-template.csv';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+
+  URL.revokeObjectURL(url);
+}
+
+
+
 
 function handleLiveSessionUpdate(userId, updates) {
   const current = getSession() || getStoredSessionUser();
