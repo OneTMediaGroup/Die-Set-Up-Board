@@ -287,14 +287,13 @@ function wireEvents() {
 
 async function handleAddUser() {
   const nameInput = root.querySelector('#newUserName');
-
   const pinInput = root.querySelector('#newUserPin');
   const roleInput = root.querySelector('#newUserRole');
   const statusInput = root.querySelector('#newUserStatus');
 
   const name = nameInput?.value.trim() || '';
-  const employeeId = pin;
   const pin = pinInput?.value.trim() || '';
+  const employeeId = pin;
   const role = roleInput?.value || 'operator';
   const status = statusInput?.value || 'active';
 
@@ -304,17 +303,15 @@ async function handleAddUser() {
     return;
   }
 
-  
-
-  const duplicateEmployeeId = users.some((user) => String(user.employeeId || '') === String(employeeId));
-  if (duplicateEmployeeId) {
-    alert('That Employee ID is already assigned to another user.');
-    employeeIdInput?.focus();
+  if (!pin) {
+    alert('PIN is required.');
+    pinInput?.focus();
     return;
   }
 
-  if (PIN_REQUIRED_ROLES.includes(role) && !pin) {
-    alert('PIN is required for die setters, supervisors, and admins.');
+  const duplicateEmployeeId = users.some((user) => String(user.employeeId || '') === String(employeeId));
+  if (duplicateEmployeeId) {
+    alert('That PIN is already assigned to another user.');
     pinInput?.focus();
     return;
   }
@@ -342,14 +339,13 @@ async function handleAddUser() {
 
 async function handleSaveUser(userId) {
   const nameInput = root.querySelector(`[data-user-name="${userId}"]`);
-  const employeeIdInput = root.querySelector(`[data-user-employee-id="${userId}"]`);
   const pinInput = root.querySelector(`[data-user-pin="${userId}"]`);
   const roleInput = root.querySelector(`[data-user-role="${userId}"]`);
   const statusInput = root.querySelector(`[data-user-status="${userId}"]`);
 
   const name = nameInput?.value.trim() || '';
-const employeeId = pin;
   const pin = pinInput?.value.trim() || '';
+  const employeeId = pin;
   const role = roleInput?.value || 'operator';
   const status = statusInput?.value || 'active';
 
@@ -359,21 +355,15 @@ const employeeId = pin;
     return;
   }
 
-  if (!employeeId) {
-    alert('Employee ID is required.');
-    employeeIdInput?.focus();
+  if (!pin) {
+    alert('PIN is required.');
+    pinInput?.focus();
     return;
   }
 
   const duplicateEmployeeId = users.some((user) => user.id !== userId && String(user.employeeId || '') === String(employeeId));
   if (duplicateEmployeeId) {
-    alert('That Employee ID is already assigned to another user.');
-    employeeIdInput?.focus();
-    return;
-  }
-
-  if (PIN_REQUIRED_ROLES.includes(role) && !pin) {
-    alert('PIN is required for die setters, supervisors, and admins.');
+    alert('That PIN is already assigned to another user.');
     pinInput?.focus();
     return;
   }
