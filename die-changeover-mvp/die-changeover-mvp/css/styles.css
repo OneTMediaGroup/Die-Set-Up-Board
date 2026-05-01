@@ -1743,3 +1743,59 @@ input, textarea, select {
 .die-board-press-toggle:hover {
   background: #f8fafc;
 }
+
+
+/* ============================= */
+/* ULTRA DENSE TV MODE */
+/* ============================= */
+
+.display-flat-list {
+  display: grid;
+  gap: 10px;
+}
+
+.display-equipment-row {
+  padding: 10px 14px !important;
+  gap: 6px !important;
+}
+
+.display-equipment-title strong {
+  font-size: 1.1rem !important;
+}
+
+.display-equipment-title span,
+.display-active-count {
+  font-size: 0.72rem !important;
+}
+
+.display-equipment-summary > .status-pill {
+  font-size: 0.68rem !important;
+  padding: 5px 8px !important;
+  min-width: 100px !important;
+}
+
+/* slots tighter */
+.display-slot-strip.compact-tv {
+  grid-template-columns: repeat(2, 1fr) !important;
+  gap: 6px !important;
+}
+
+.display-slot-card {
+  min-height: 70px !important;
+  padding: 6px 8px !important;
+  gap: 4px !important;
+}
+
+.display-slot-main strong {
+  font-size: 0.9rem !important;
+}
+
+.display-slot-main span,
+.display-slot-bottom {
+  font-size: 0.7rem !important;
+}
+
+.display-ready-banner {
+  font-size: 0.6rem !important;
+  padding: 3px 5px !important;
+}
