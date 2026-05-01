@@ -171,7 +171,10 @@ function render() {
           <h2>User List</h2>
           <div class="muted">Single-line rows. Click Edit only when you need to change details or reset a PIN.</div>
         </div>
-        <button id="refreshUsersBtn" class="button">Refresh</button>
+        <div style="display:flex; gap:8px;">
+  <button id="refreshUsersBtn" class="button">Refresh</button>
+  <button id="exportUsersBtn" class="button">Export CSV</button>
+</div>
       </div>
 
       <div class="user-toolbar">
@@ -265,6 +268,7 @@ function wireEvents() {
 root.querySelector('#importUsersBtn')?.addEventListener('click', handleImportUsers);
 root.querySelector('#downloadUserTemplateBtn')?.addEventListener('click', downloadUserTemplateCsv);
 root.querySelector('#refreshUsersBtn')?.addEventListener('click', loadAndRender);
+root.querySelector('#exportUsersBtn')?.addEventListener('click', exportUsersCSV);
 
   root.querySelector('#userSearchInput')?.addEventListener('input', (event) => {
     searchText = event.target.value;
@@ -648,4 +652,36 @@ function escapeHtml(value) {
 
 function escapeAttr(value) {
   return escapeHtml(value);
+}
+
+function exportUsersCSV() {
+  if (!users.length) {
+    alert('No users to export.');
+    return;
+  }
+
+  const headers = ['name', 'employeeId', 'role', 'pin', 'status'];
+
+  const rows = users.map(u => [
+    u.name || '',
+    u.employeeId || '',
+    u.role || '',
+    u.pin || '',
+    statusFor(u)
+  ]);
+
+  const csvContent = [
+    headers.join(','),
+    ...rows.map(row => row.map(val => `"${String(val).replaceAll('"', '""')}"`).join(','))
+  ].join('\n');
+
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `users_export_${new Date().toISOString().slice(0,10)}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
 }
