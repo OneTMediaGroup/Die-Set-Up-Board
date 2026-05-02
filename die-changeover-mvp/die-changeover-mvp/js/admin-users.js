@@ -658,11 +658,11 @@ function readFileAsText(file) {
 }
 function downloadUserTemplateCsv() {
   const csv = [
-    'name,role,pin,status',
-    'Sally Smith,operator,1001,active',
-    'Bob Jones,dieSetter,1002,active',
-    'Mike Carter,supervisor,1003,active',
-    'Lisa Brown,admin,1004,active'
+    'name,role,pin,employeeId,badgeCode,status',
+    'Sally Smith,operator,1001,331,,active',
+    'Bob Jones,dieSetter,1002,442,A123-567B-6754,active',
+    'Mike Carter,supervisor,1003,553,,active',
+    'Lisa Brown,admin,1004,664,~NTPKIO95-PZKD-CEE5,active'
   ].join('\n');
 
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
