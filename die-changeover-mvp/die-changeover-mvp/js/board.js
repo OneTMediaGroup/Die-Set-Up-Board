@@ -160,7 +160,7 @@ async function confirmDieSetterLogin() {
 
   const userId = document.getElementById('dieSetterLoginUser')?.value || '';
   const pinInput = document.getElementById('dieSetterLoginPin');
-  const pin = pinInput?.value.trim() || '';
+  const pin = employeeId;
   const confirmBtn = document.getElementById('dieSetterLoginConfirm');
   const user = dieSetters.find((item) => item.id === userId);
 

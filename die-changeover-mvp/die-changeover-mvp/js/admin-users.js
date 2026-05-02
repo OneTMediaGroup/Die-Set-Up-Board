@@ -121,10 +121,7 @@ function render() {
     </select>
   </label>
 
-  <label>
-    <span>PIN</span>
-    <input id="newUserPin" type="password" inputmode="numeric" placeholder="Optional for operators" />
-  </label>
+  
 
   <label>
     <span>Employee ID</span>
@@ -151,7 +148,7 @@ function render() {
       <div class="section-header">
         <div>
           <h2>Import Users</h2>
-          <div class="muted">Upload CSV: name, role, pin, status. PIN must be unique.</div>
+          <div class="muted">Upload CSV: name, role, employeeId, badgeCode, status.</div>
         </div>
       </div>
 
@@ -168,8 +165,8 @@ function render() {
       </div>
 
       <div class="muted" style="margin-top:12px;">
-        Example: <code>name,role,pin,status</code><br />
-        <code>Sally Smith,operator,12345,active</code>
+        Example: <code>name,role,employeeId,badgeCode,status</code><br />
+<code>Sally Smith,operator,331,,active</code>
       </div>
 
       <div id="importUsersResult" class="muted" style="margin-top:12px;"></div>
@@ -188,7 +185,7 @@ function render() {
       </div>
 
       <div class="user-toolbar">
-        <input id="userSearchInput" value="${escapeAttr(searchText)}" placeholder="Search users, roles, or PIN..." />
+        <input id="userSearchInput" value="${escapeAttr(searchText)}" placeholder="Search users, roles, employee ID, or badge." />
         <select id="userRoleFilter">
           <option value="all" ${roleFilter === 'all' ? 'selected' : ''}>All roles (${users.length})</option>
           ${ROLES.map((role) => `<option value="${role.value}" ${roleFilter === role.value ? 'selected' : ''}>${role.label} (${roleCount(role.value)})</option>`).join('')}
@@ -212,22 +209,22 @@ function renderUserRow(user) {
 
   if (!isEditing) {
     return `
-      <div class="user-row compact-user-row">
-        <div class="user-main-line">
-          <strong>${escapeHtml(user.name || 'Unnamed User')}</strong>
-          <span class="user-role-pill ${roleClass}">${roleLabel(user.role)}</span>
-          <span class="status-pill ${status === 'active' ? 'running' : 'blocked'}">${status === 'active' ? 'Active' : 'Inactive'}</span>
-          <span class="muted user-pin-preview">PIN: ${pinPreview}</span>
-${user.employeeId ? `<span class="muted user-pin-preview">ID: ${escapeHtml(user.employeeId)}</span>` : ''}
-${user.badgeCode ? `<span class="muted user-pin-preview">Badge: ${escapeHtml(user.badgeCode)}</span>` : ''}
-        </div>
+  <div class="user-row compact-user-row">
+    <div class="user-main-line" style="display:grid; grid-template-columns: 180px 120px 110px 130px 1fr; align-items:center; gap:12px;">
+      <strong>${escapeHtml(user.name || 'Unnamed User')}</strong>
+      <span class="user-role-pill ${roleClass}">${roleLabel(user.role)}</span>
+      <span class="status-pill ${status === 'active' ? 'running' : 'blocked'}">${status === 'active' ? 'Active' : 'Inactive'}</span>
+      <span class="muted user-pin-preview">ID: ${escapeHtml(user.employeeId || user.pin || '—')}</span>
+      <span class="muted user-pin-preview">${user.badgeCode ? `Badge: ${escapeHtml(user.badgeCode)}` : ''}</span>
+    </div>
 
-        <div class="user-row-actions">
-          <button data-edit-user="${user.id}" class="button">Edit</button>
-          <button data-delete-user="${user.id}" class="button danger-outline">Delete</button>
-        </div>
-      </div>
-    `;
+    <div class="user-row-actions">
+      <button data-edit-user="${user.id}" class="button">Edit</button>
+      <button data-delete-user="${user.id}" class="button danger-outline">Delete</button>
+    </div>
+  </div>
+`;
+
   }
 
   return `
@@ -336,14 +333,14 @@ root.querySelector('#exportUsersBtn')?.addEventListener('click', exportUsersCSV)
 
 async function handleAddUser() {
   const nameInput = root.querySelector('#newUserName');
-  const pinInput = root.querySelector('#newUserPin');
+
   const employeeIdInput = root.querySelector('#newUserEmployeeId');
   const badgeCodeInput = root.querySelector('#newUserBadgeCode');
   const roleInput = root.querySelector('#newUserRole');
   const statusInput = root.querySelector('#newUserStatus');
 
   const name = nameInput?.value.trim() || '';
-  const pin = pinInput?.value.trim() || '';
+  const pin = employeeId;
   const employeeId = employeeIdInput?.value.trim() || '';
   const badgeCode = badgeCodeInput?.value.trim() || '';
   const role = roleInput?.value || 'operator';
@@ -500,7 +497,7 @@ async function handleSaveUser(userId) {
   const statusInput = root.querySelector(`[data-user-status="${userId}"]`);
 
   const name = nameInput?.value.trim() || '';
-  const pin = pinInput?.value.trim() || '';
+  const pin = employeeId;
   const badgeCode = badgeCodeInput?.value.trim() || '';
   const employeeId = pin;
   const role = roleInput?.value || 'operator';
