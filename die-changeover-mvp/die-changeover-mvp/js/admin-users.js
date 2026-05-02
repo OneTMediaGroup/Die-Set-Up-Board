@@ -104,7 +104,7 @@ function render() {
       <div class="section-header">
         <div>
           <h2>Add User</h2>
-          <div class="muted">PIN is used for Ready. PIN is also used for Complete + Shift roles.</div>
+          <div class="muted">Employee ID is used for manual entry. Badge Code is optional for scanner systems.</div>
         </div>
       </div>
 
@@ -684,11 +684,11 @@ function readFileAsText(file) {
 }
 function downloadUserTemplateCsv() {
   const csv = [
-    'name,role,pin,employeeId,badgeCode,status',
-    'Sally Smith,operator,1001,331,,active',
-    'Bob Jones,dieSetter,1002,442,A123-567B-6754,active',
-    'Mike Carter,supervisor,1003,553,,active',
-    'Lisa Brown,admin,1004,664,~NTPKIO95-PZKD-CEE5,active'
+    'name,role,employeeId,badgeCode,status',
+    'Sally Smith,operator,331,,active',
+    'Bob Jones,dieSetter,442,A123-567B-6754,active',
+    'Mike Carter,supervisor,553,,active',
+    'Lisa Brown,admin,664,~NTPKIO95-PZKD-CEE5,active'
   ].join('\n');
 
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
