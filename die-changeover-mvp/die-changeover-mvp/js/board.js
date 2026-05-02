@@ -530,24 +530,66 @@ function renderSlot(press, slot, slotIndex) {
     </section>
   `;
 }
+function findUserByScan(value) {
+  const clean = String(value).trim();
+
+  return dieSetters.find(u =>
+    String(u.employeeId || '') === clean ||
+    String(u.badgeCode || '') === clean
+  );
+}
+
 
 async function handleReadyForChangeover(pressId, slotIndex) {
   ensureReadyModal();
 
   const modal = document.getElementById('readyLoginModal');
   const input = document.getElementById('readyEmployeeId');
-  const confirmBtn = document.getElementById('readyConfirm');
+  const nameLabel = document.getElementById('readyEmployeeName');
 
   modal.classList.remove('hidden');
-  input.value = '';
-  document.getElementById('readyEmployeeName').textContent = '';
 
-  confirmBtn.onclick = async () => {
-    const enteredId = input.value.trim();
-    const user = dieSetters.find((u) => matchesUserCode(u, enteredId));
+  input.value = '';
+  nameLabel.textContent = '';
+
+  // 🔥 AUTO FOCUS
+  setTimeout(() => input.focus(), 100);
+
+  let lastKeyTime = 0;
+  let scanBuffer = '';
+
+  input.onkeydown = async (e) => {
+    const now = Date.now();
+
+    // detect fast input (scanner)
+    if (now - lastKeyTime < 50) {
+      scanBuffer += e.key;
+    } else {
+      scanBuffer = e.key;
+    }
+
+    lastKeyTime = now;
+
+    // ENTER = submit (scanner or human)
+    if (e.key === 'Enter') {
+      await processReadyScan();
+    }
+  };
+
+  input.oninput = () => {
+    const user = findUserByScan(input.value);
+    nameLabel.textContent = user ? `Confirm: ${user.name}` : '';
+  };
+
+  async function processReadyScan() {
+    const entered = input.value.trim();
+    const user = findUserByScan(entered);
 
     if (!user) {
-      alert('Invalid badge / PIN');
+      alert('Invalid scan');
+      input.value = '';
+      nameLabel.textContent = '';
+      input.focus();
       return;
     }
 
@@ -571,9 +613,10 @@ async function handleReadyForChangeover(pressId, slotIndex) {
 
       modal.classList.add('hidden');
     } catch (error) {
+      console.error(error);
       alert('Failed to mark ready');
     }
-  };
+  }
 }
 
 function openSetup(pressId, slotIndex) {
