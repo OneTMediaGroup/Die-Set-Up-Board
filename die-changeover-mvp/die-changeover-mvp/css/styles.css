@@ -1824,11 +1824,11 @@ input, textarea, select {
   white-space: nowrap;
 }
 
-.compact-user-row {
+.compact-user-row .user-main-line {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: 190px 130px 120px 180px minmax(160px, 1fr);
   align-items: center;
-  gap: 12px;
+  gap: 16px;
 }
 
 .compact-user-row .user-main-line {

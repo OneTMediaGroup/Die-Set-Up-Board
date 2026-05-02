@@ -333,18 +333,18 @@ root.querySelector('#exportUsersBtn')?.addEventListener('click', exportUsersCSV)
 
 async function handleAddUser() {
   const nameInput = root.querySelector('#newUserName');
-
   const employeeIdInput = root.querySelector('#newUserEmployeeId');
   const badgeCodeInput = root.querySelector('#newUserBadgeCode');
   const roleInput = root.querySelector('#newUserRole');
   const statusInput = root.querySelector('#newUserStatus');
 
   const name = nameInput?.value.trim() || '';
-  const pin = employeeId;
   const employeeId = employeeIdInput?.value.trim() || '';
   const badgeCode = badgeCodeInput?.value.trim() || '';
   const role = roleInput?.value || 'operator';
   const status = statusInput?.value || 'active';
+
+  const pin = employeeId;
 
   if (!name) {
     alert('Name is required.');
@@ -352,37 +352,29 @@ async function handleAddUser() {
     return;
   }
 
-  if (!pin && !employeeId && !badgeCode) {
-    alert('Add at least one: PIN, Employee ID, or Badge Code.');
+  if (!employeeId && !badgeCode) {
+    alert('Add Employee ID or Badge Code.');
+    employeeIdInput?.focus();
     return;
   }
 
-  if (['dieSetter','supervisor','admin'].includes(role) && !pin) {
-    alert('PIN is required for this role.');
-    pinInput?.focus();
+  if (employeeId && users.some((user) => String(user.employeeId || user.pin || '') === employeeId)) {
+    alert('That Employee ID is already assigned.');
+    employeeIdInput?.focus();
     return;
   }
 
-  if (pin && users.some(u => u.pin === pin)) {
-    alert('Duplicate PIN.');
-    return;
-  }
-
-  if (employeeId && users.some(u => u.employeeId === employeeId)) {
-    alert('Duplicate Employee ID.');
-    return;
-  }
-
-  if (badgeCode && users.some(u => u.badgeCode === badgeCode)) {
-    alert('Duplicate Badge Code.');
+  if (badgeCode && users.some((user) => String(user.badgeCode || '') === badgeCode)) {
+    alert('That Badge Code is already assigned.');
+    badgeCodeInput?.focus();
     return;
   }
 
   try {
     await addDoc(collection(db, 'users'), {
       name,
-      pin,
       employeeId,
+      pin,
       badgeCode,
       role,
       status,
@@ -390,11 +382,13 @@ async function handleAddUser() {
       updatedAt: new Date().toISOString()
     });
 
-    await addAdminLog(`Created user ${name}`);
+    await addAdminLog(`Created user ${name} as ${roleLabel(role)}`);
+    searchText = '';
+    roleFilter = 'all';
     await loadAndRender();
   } catch (error) {
-    console.error(error);
-    alert('Add failed');
+    console.error('❌ Add user failed:', error);
+    alert('Add user failed.');
   }
 }
 
