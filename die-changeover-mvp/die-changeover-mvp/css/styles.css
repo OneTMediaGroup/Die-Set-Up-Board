@@ -1824,71 +1824,133 @@ input, textarea, select {
   white-space: nowrap;
 }
 
-.compact-user-row .user-main-line {
-  display: grid;
-  grid-template-columns: 190px 130px 120px 180px minmax(160px, 1fr);
-  align-items: center;
-  gap: 16px;
+/* ============================= */
+/* ADMIN USER LIST FINAL ALIGNMENT */
+/* ============================= */
+
+/* Keep each user row as: user info columns + action buttons */
+.compact-user-row {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  align-items: center !important;
+  gap: 14px !important;
+  padding: 12px 14px !important;
 }
 
+/* Columns: Name | Role | Status | ID | Badge */
 .compact-user-row .user-main-line {
-  display: grid;
-  grid-template-columns: 180px 120px 110px 140px 1fr;
-  align-items: center;
-  gap: 12px;
-  min-width: 0;
+  display: grid !important;
+  grid-template-columns:
+    minmax(150px, 1.15fr)
+    112px
+    118px
+    150px
+    minmax(190px, 1fr) !important;
+  align-items: center !important;
+  gap: 14px !important;
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
+.compact-user-row .user-main-line > * {
+  min-width: 0 !important;
 }
 
 .compact-user-row strong,
 .compact-user-row span {
-  white-space: nowrap;
-}
-
-.user-row-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.admin-shell {
-  display: grid;
-  grid-template-columns: 260px minmax(0, 1fr);
-}
-
-.admin-sidebar {
-  min-width: 240px;
-  max-width: 260px;
-}
-
-.admin-content {
-  min-width: 0;
-  overflow-x: auto;
-}
-
-@media (max-width: 900px) {
-  .admin-shell {
-    grid-template-columns: 1fr;
-  }
-
-  .admin-sidebar {
-    position: relative;
-    width: 100%;
-    max-width: none;
-  }
-}
-
-.compact-user-row .user-main-line {
-  display: grid !important;
-  grid-template-columns: 180px 130px 150px 170px minmax(220px, 1fr) !important;
-  align-items: center !important;
-  gap: 18px !important;
+  white-space: nowrap !important;
 }
 
 .compact-user-row .status-pill {
-  width: 140px !important;
+  width: 118px !important;
+  min-width: 118px !important;
+  padding: 8px 12px !important;
+  justify-content: center !important;
+  text-align: center !important;
+}
+
+.compact-user-row .user-role-pill {
+  width: 112px !important;
   text-align: center !important;
   justify-content: center !important;
 }
 
 .compact-user-row .user-pin-preview {
+  display: block !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
   white-space: nowrap !important;
+  font-weight: 650 !important;
+  color: var(--text) !important;
+}
+
+.user-row-actions {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  flex-wrap: nowrap !important;
+}
+
+/* Admin sidebar/content responsive fix */
+.admin-app-shell {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+}
+
+.admin-sidebar {
+  min-width: 240px;
+  max-width: 280px;
+}
+
+.admin-main,
+.admin-workspace {
+  min-width: 0;
+}
+
+.admin-main {
+  overflow-x: auto;
+}
+
+@media (max-width: 1100px) {
+  .admin-app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-sidebar {
+    min-height: auto;
+    position: relative;
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+  }
+
+  .admin-main {
+    padding: 22px 16px;
+  }
+}
+
+@media (max-width: 900px) {
+  .compact-user-row {
+    grid-template-columns: 1fr !important;
+    align-items: stretch !important;
+  }
+
+  .compact-user-row .user-main-line {
+    grid-template-columns: 1fr 1fr !important;
+  }
+
+  .user-row-actions {
+    justify-content: flex-start !important;
+  }
+}
+
+@media (max-width: 560px) {
+  .compact-user-row .user-main-line {
+    grid-template-columns: 1fr !important;
+  }
+
+  .compact-user-row .user-role-pill,
+  .compact-user-row .status-pill {
+    width: 100% !important;
+  }
 }
