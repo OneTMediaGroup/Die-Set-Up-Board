@@ -1875,3 +1875,20 @@ input, textarea, select {
     max-width: none;
   }
 }
+
+.compact-user-row .user-main-line {
+  display: grid !important;
+  grid-template-columns: 180px 130px 150px 170px minmax(220px, 1fr) !important;
+  align-items: center !important;
+  gap: 18px !important;
+}
+
+.compact-user-row .status-pill {
+  width: 140px !important;
+  text-align: center !important;
+  justify-content: center !important;
+}
+
+.compact-user-row .user-pin-preview {
+  white-space: nowrap !important;
+}
