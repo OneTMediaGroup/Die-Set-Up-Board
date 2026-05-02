@@ -780,79 +780,97 @@ function printBadge(userId) {
   const printWindow = window.open('', '_blank');
 
   printWindow.document.write(`
-    <html>
-      <head>
-        <title>Badge</title>
-        <style>
-          body {
-            margin: 0;
-            font-family: Arial, sans-serif;
-          }
+<html>
+<head>
+<title>Badge</title>
+<style>
+  body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+  }
 
-          .badge {
-            width: 3.375in;
-            height: 2.125in;
-            border: 2px solid black;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            padding: 10px;
-            box-sizing: border-box;
-          }
+  .badge {
+    width: 3.375in;
+    height: 2.125in;
+    border: 2px solid black;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 10px;
+    box-sizing: border-box;
+  }
 
-          .top {
-            font-size: 12px;
-            font-weight: bold;
-          }
+  .top {
+    font-size: 14px;
+    font-weight: bold;
+    text-align: center;
+  }
 
-          .name {
-            font-size: 18px;
-            font-weight: bold;
-            text-align: center;
-            margin-top: 10px;
-          }
+  .name {
+    font-size: 20px;
+    font-weight: bold;
+    text-align: center;
+  }
 
-          .id {
-            font-size: 14px;
-            text-align: center;
-            margin-top: 4px;
-          }
+  .id {
+    font-size: 14px;
+    text-align: center;
+  }
 
-          .barcode {
-            font-size: 12px;
-            text-align: center;
-            margin-top: 10px;
-            word-break: break-all;
-          }
+  .barcode {
+    font-size: 12px;
+    text-align: center;
+    word-break: break-all;
+  }
 
-          @media print {
-            body {
-              margin: 0;
-            }
-          }
-        </style>
-      </head>
-      <body>
-        <div class="badge">
-          <div class="top">One T Media Group</div>
+  .footer {
+    font-size: 10px;
+    text-align: center;
+    opacity: 0.6;
+  }
 
-          <div>
-            <div class="name">${name}</div>
-            <div class="id">ID: ${id}</div>
-          </div>
+  @media print {
+    body { margin: 0; }
+  }
+</style>
+</head>
 
-          <div class="barcode">${badge || id}</div>
-        </div>
+<body>
+  <div class="badge">
 
-        <script>
-          window.onload = function() {
-            window.print();
-            window.close();
-          }
-        <\/script>
-      </body>
-    </html>
-  `);
+    <!-- TOP = CLIENT BRAND -->
+    <div class="top">
+      COMPANY NAME
+    </div>
+
+    <!-- CENTER -->
+    <div>
+      <div class="name">${name}</div>
+      <div class="id">ID: ${id}</div>
+    </div>
+
+    <!-- BARCODE / CODE -->
+    <div class="barcode">
+      ${badge || id}
+    </div>
+
+    <!-- BOTTOM = YOUR SYSTEM -->
+    <div class="footer">
+      Powered by One T Media Group
+    </div>
+
+  </div>
+
+  <script>
+    window.onload = function() {
+      window.print();
+      window.close();
+    }
+  <\/script>
+
+</body>
+</html>
+`);
 
   printWindow.document.close();
 }
