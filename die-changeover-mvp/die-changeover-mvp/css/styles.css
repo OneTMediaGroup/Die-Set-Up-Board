@@ -1823,3 +1823,55 @@ input, textarea, select {
   justify-self: end;
   white-space: nowrap;
 }
+
+.compact-user-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.compact-user-row .user-main-line {
+  display: grid;
+  grid-template-columns: 180px 120px 110px 140px 1fr;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.compact-user-row strong,
+.compact-user-row span {
+  white-space: nowrap;
+}
+
+.user-row-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.admin-shell {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+}
+
+.admin-sidebar {
+  min-width: 240px;
+  max-width: 260px;
+}
+
+.admin-content {
+  min-width: 0;
+  overflow-x: auto;
+}
+
+@media (max-width: 900px) {
+  .admin-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-sidebar {
+    position: relative;
+    width: 100%;
+    max-width: none;
+  }
+}

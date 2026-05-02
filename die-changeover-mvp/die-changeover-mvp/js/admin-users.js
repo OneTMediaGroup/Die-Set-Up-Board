@@ -166,7 +166,7 @@ function render() {
 
       <div class="muted" style="margin-top:12px;">
         Example: <code>name,role,employeeId,badgeCode,status</code><br />
-<code>Sally Smith,operator,331,,active</code>
+<code>Sally Smith,operator,331,1234-444-555,active</code>
       </div>
 
       <div id="importUsersResult" class="muted" style="margin-top:12px;"></div>
