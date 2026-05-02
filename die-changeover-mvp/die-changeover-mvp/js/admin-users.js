@@ -109,34 +109,43 @@ function render() {
       </div>
 
       <div class="user-add-grid">
-        <label>
-          <span>Name</span>
-          <input id="newUserName" placeholder="Example: Bab S." autocomplete="off" />
-        </label>
+  <label>
+    <span>Name</span>
+    <input id="newUserName" placeholder="Example: Bab S." autocomplete="off" />
+  </label>
 
-        <label>
-          <span>Role</span>
-          <select id="newUserRole">
-            ${ROLES.map((role) => `<option value="${role.value}" ${role.value === 'operator' ? 'selected' : ''}>${role.label}</option>`).join('')}
-          </select>
-        </label>
+  <label>
+    <span>Role</span>
+    <select id="newUserRole">
+      ${ROLES.map((role) => `<option value="${role.value}" ${role.value === 'operator' ? 'selected' : ''}>${role.label}</option>`).join('')}
+    </select>
+  </label>
 
-        <label>
-          <span>PIN</span>
-          <input id="newUserPin" type="password" inputmode="numeric" placeholder="xxxxx" autocomplete="new-password" />
-        </label>
+  <label>
+    <span>PIN</span>
+    <input id="newUserPin" type="password" inputmode="numeric" placeholder="Optional for operators" />
+  </label>
 
-        <label>
-          <span>Status</span>
-          <select id="newUserStatus">
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
-          </select>
-        </label>
+  <label>
+    <span>Employee ID</span>
+    <input id="newUserEmployeeId" inputmode="numeric" placeholder="Optional (e.g. 331)" />
+  </label>
 
-        <button id="addUserBtn" class="button primary user-add-button">+ Add User</button>
-      </div>
-    </div>
+  <label>
+    <span>Badge Code</span>
+    <input id="newUserBadgeCode" placeholder="Optional scan code" />
+  </label>
+
+  <label>
+    <span>Status</span>
+    <select id="newUserStatus">
+      <option value="active">Active</option>
+      <option value="inactive">Inactive</option>
+    </select>
+  </label>
+
+  <button id="addUserBtn" class="button primary user-add-button">+ Add User</button>
+</div>
 
     <div class="admin-card user-add-panel" style="margin-top:16px;">
       <div class="section-header">
@@ -209,7 +218,8 @@ function renderUserRow(user) {
           <span class="user-role-pill ${roleClass}">${roleLabel(user.role)}</span>
           <span class="status-pill ${status === 'active' ? 'running' : 'blocked'}">${status === 'active' ? 'Active' : 'Inactive'}</span>
           <span class="muted user-pin-preview">PIN: ${pinPreview}</span>
-          ${user.badgeCode ? `<span class="muted user-pin-preview">Badge: ${escapeHtml(user.badgeCode)}</span>` : ''}
+${user.employeeId ? `<span class="muted user-pin-preview">ID: ${escapeHtml(user.employeeId)}</span>` : ''}
+${user.badgeCode ? `<span class="muted user-pin-preview">Badge: ${escapeHtml(user.badgeCode)}</span>` : ''}
         </div>
 
         <div class="user-row-actions">
@@ -327,12 +337,15 @@ root.querySelector('#exportUsersBtn')?.addEventListener('click', exportUsersCSV)
 async function handleAddUser() {
   const nameInput = root.querySelector('#newUserName');
   const pinInput = root.querySelector('#newUserPin');
+  const employeeIdInput = root.querySelector('#newUserEmployeeId');
+  const badgeCodeInput = root.querySelector('#newUserBadgeCode');
   const roleInput = root.querySelector('#newUserRole');
   const statusInput = root.querySelector('#newUserStatus');
 
   const name = nameInput?.value.trim() || '';
   const pin = pinInput?.value.trim() || '';
-  const employeeId = pin;
+  const employeeId = employeeIdInput?.value.trim() || '';
+  const badgeCode = badgeCodeInput?.value.trim() || '';
   const role = roleInput?.value || 'operator';
   const status = statusInput?.value || 'active';
 
@@ -342,37 +355,49 @@ async function handleAddUser() {
     return;
   }
 
-  if (!pin) {
-    alert('PIN is required.');
+  if (!pin && !employeeId && !badgeCode) {
+    alert('Add at least one: PIN, Employee ID, or Badge Code.');
+    return;
+  }
+
+  if (['dieSetter','supervisor','admin'].includes(role) && !pin) {
+    alert('PIN is required for this role.');
     pinInput?.focus();
     return;
   }
 
-  const duplicateEmployeeId = users.some((user) => String(user.employeeId || user.pin || '') === String(employeeId));
-  if (duplicateEmployeeId) {
-    alert('That PIN is already assigned to another user.');
-    pinInput?.focus();
+  if (pin && users.some(u => u.pin === pin)) {
+    alert('Duplicate PIN.');
+    return;
+  }
+
+  if (employeeId && users.some(u => u.employeeId === employeeId)) {
+    alert('Duplicate Employee ID.');
+    return;
+  }
+
+  if (badgeCode && users.some(u => u.badgeCode === badgeCode)) {
+    alert('Duplicate Badge Code.');
     return;
   }
 
   try {
     await addDoc(collection(db, 'users'), {
       name,
-      employeeId,
       pin,
+      employeeId,
+      badgeCode,
       role,
       status,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     });
 
-    await addAdminLog(`Created user ${name} as ${roleLabel(role)}`);
-    searchText = '';
-    roleFilter = 'all';
+    await addAdminLog(`Created user ${name}`);
     await loadAndRender();
   } catch (error) {
-    console.error('❌ Add user failed:', error);
-    alert('Add user failed.');
+    console.error(error);
+    alert('Add failed');
   }
 }
 
@@ -438,7 +463,7 @@ async function handleImportUsers() {
 
       await addDoc(collection(db, 'users'), {
         name: user.name,
-        employeeId: user.pin,
+       employeeId: user.employeeId || user.pin,
         pin: user.pin,
         badgeCode: user.badgeCode,
         role: user.role,
@@ -575,12 +600,13 @@ function normalizeImportRow(row) {
   const name = fullName || [firstName, lastName].filter(Boolean).join(' ').trim();
 
   return {
-    name,
-    pin,
-    badgeCode,
-    role: normalizedRole,
-    status: normalizeStatus(rawStatus)
-  };
+  name,
+  pin,
+  employeeId: String(row.employeeId || '').trim(),
+  badgeCode,
+  role: normalizedRole,
+  status: normalizeStatus(rawStatus)
+};
 }
 
 function normalizeRole(value) {
@@ -709,7 +735,7 @@ function exportUsersCSV() {
     return;
   }
 
-  const headers = ['name', 'employeeId', 'role', 'pin', 'status'];
+  const headers = ['name', 'employeeId', 'role', 'pin', 'badgeCode', 'status'];
 
   const rows = users.map(u => [
     u.name || '',
