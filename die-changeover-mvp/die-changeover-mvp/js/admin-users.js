@@ -219,9 +219,10 @@ function renderUserRow(user) {
     </div>
 
     <div class="user-row-actions">
-      <button data-edit-user="${user.id}" class="button">Edit</button>
-      <button data-delete-user="${user.id}" class="button danger-outline">Delete</button>
-    </div>
+  <button data-print-badge="${user.id}" class="button">Print Badge</button>
+  <button data-edit-user="${user.id}" class="button">Edit</button>
+  <button data-delete-user="${user.id}" class="button danger-outline">Delete</button>
+</div>
   </div>
 `;
 
@@ -317,6 +318,12 @@ root.querySelector('#exportUsersBtn')?.addEventListener('click', exportUsersCSV)
       render();
     });
   });
+
+  root.querySelectorAll('[data-print-badge]').forEach((button) => {
+  button.addEventListener('click', () => {
+    printBadge(button.dataset.printBadge);
+  });
+});
 
   root.querySelectorAll('[data-save-user]').forEach((button) => {
     button.addEventListener('click', async () => {
@@ -491,9 +498,9 @@ async function handleSaveUser(userId) {
   const statusInput = root.querySelector(`[data-user-status="${userId}"]`);
 
   const name = nameInput?.value.trim() || '';
-  const pin = employeeId;
+  const employeeId = pinInput?.value.trim() || ''; // ← this is your ID now
+  const pin = employeeId; // keep system compatibility
   const badgeCode = badgeCodeInput?.value.trim() || '';
-  const employeeId = pin;
   const role = roleInput?.value || 'operator';
   const status = statusInput?.value || 'active';
 
@@ -503,22 +510,30 @@ async function handleSaveUser(userId) {
     return;
   }
 
-  if (!pin) {
-    alert('PIN is required.');
+  if (!employeeId && !badgeCode) {
+    alert('Add Employee ID or Badge Code.');
     pinInput?.focus();
     return;
   }
 
-  const duplicatePin = users.some((user) => user.id !== userId && String(user.employeeId || user.pin || '') === String(employeeId));
-  if (duplicatePin) {
-    alert('That PIN is already assigned to another user.');
+  const duplicateId = employeeId && users.some(
+    (user) => user.id !== userId &&
+    String(user.employeeId || user.pin || '') === employeeId
+  );
+
+  if (duplicateId) {
+    alert('That Employee ID is already assigned.');
     pinInput?.focus();
     return;
   }
 
-  const duplicateBadge = badgeCode && users.some((user) => user.id !== userId && String(user.badgeCode || '') === String(badgeCode));
+  const duplicateBadge = badgeCode && users.some(
+    (user) => user.id !== userId &&
+    String(user.badgeCode || '') === badgeCode
+  );
+
   if (duplicateBadge) {
-    alert('That Badge Code is already assigned to another user.');
+    alert('That Badge Code is already assigned.');
     badgeCodeInput?.focus();
     return;
   }
@@ -535,8 +550,10 @@ async function handleSaveUser(userId) {
 
     handleLiveSessionUpdate(userId, { name, employeeId, pin, badgeCode, role, status });
     await addAdminLog(`Updated user ${name}`);
+
     editingUserId = null;
     await loadAndRender();
+
   } catch (error) {
     console.error('❌ Save user failed:', error);
     alert('Save failed.');
