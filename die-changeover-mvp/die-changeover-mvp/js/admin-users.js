@@ -19,7 +19,7 @@ let roleFilter = 'all';
 
 const ROLES = [
   { value: 'operator', label: 'Operator' },
-  { value: 'dieSetter', label: 'Die Setter' },
+  { value: 'dieSetter', label: 'Auth Personal' },
   { value: 'supervisor', label: 'Supervisor' },
   { value: 'admin', label: 'Admin' }
 ];

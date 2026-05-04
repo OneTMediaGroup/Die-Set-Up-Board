@@ -60,7 +60,7 @@ async function loadDieSetters() {
 
     renderDieSetterOptions();
   } catch (error) {
-    console.error('❌ Failed to load die setters:', error);
+    console.error('❌ Failed to load Auth Personal:', error);
     dieSetters = [];
     renderDieSetterOptions();
   }

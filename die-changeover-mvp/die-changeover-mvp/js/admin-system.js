@@ -6,7 +6,7 @@ let root = null;
 
 let settings = {
   brandingMode: 'text',
-  brandText: 'MAGNA',
+  brandText: 'Your Brand',
   logoUrl: ''
 };
 
@@ -157,7 +157,7 @@ function wireEvents() {
 
 function renderPreview() {
   const mode = root.querySelector('#brandingMode')?.value || 'text';
-  const text = root.querySelector('#brandText')?.value.trim() || 'MAGNA';
+  const text = root.querySelector('#brandText')?.value.trim() || 'Your Brand';
   const logoUrl = root.querySelector('#logoUrl')?.value.trim() || '';
   const preview = root.querySelector('#brandPreview');
 
@@ -172,7 +172,7 @@ function renderPreview() {
 
 async function saveSettings() {
   const brandingMode = root.querySelector('#brandingMode')?.value || 'text';
-  const brandText = root.querySelector('#brandText')?.value.trim() || 'MAGNA';
+  const brandText = root.querySelector('#brandText')?.value.trim() || 'Your Brand';
   const logoInputValue = root.querySelector('#logoUrl')?.value.trim() || '';
 
   try {

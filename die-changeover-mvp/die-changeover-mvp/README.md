@@ -1,11 +1,11 @@
-# Die Changeover Board MVP
 
-Starter HTML/CSS/JavaScript MVP for a Magna-style die changeover timing board.
+
+
 
 ## Included
 
 - `index.html` - landing page
-- `board.html` - die setter touchscreen board
+- `board.html` - Floor Board touchscreen board
 - `supervisor.html` - supervisor scheduling/editing screen
 - `admin.html` - admin / maintenance screen
 - `css/styles.css` - shared styling

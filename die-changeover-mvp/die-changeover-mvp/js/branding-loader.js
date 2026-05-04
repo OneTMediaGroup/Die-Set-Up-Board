@@ -3,7 +3,7 @@ import { db } from './firebase-config.js';
 
 const DEFAULT_SETTINGS = {
   brandingMode: 'text',
-  brandText: 'MAGNA',
+  brandText: 'Your Brand',
   logoUrl: ''
 };
 
@@ -29,7 +29,7 @@ async function applyBranding() {
       el.style.display = 'flex';
       el.style.alignItems = 'center';
     } else {
-      el.textContent = settings.brandText || 'MAGNA';
+      el.textContent = settings.brandText || 'Your Brand';
     }
   });
 }
