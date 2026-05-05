@@ -182,7 +182,8 @@ function render() {
         <div style="display:flex; gap:8px;">
   <button id="refreshUsersBtn" class="button">Refresh</button>
 <button id="exportUsersBtn" class="button">Export CSV</button>
-<button id="printAllBadgesBtn" class="button primary">Print Badges</button>
+<button id="printSelectedBadgesBtn" class="button primary">Print Selected</button>
+<button id="printAllBadgesBtn" class="button">Print All</button>
 </div>
       </div>
 
@@ -206,28 +207,27 @@ function render() {
 function renderUserRow(user) {
   const status = statusFor(user);
   const isEditing = editingUserId === user.id;
-  const pinPreview = user.pin ? '••••' : 'No PIN';
   const roleClass = `role-${String(user.role || 'none').toLowerCase()}`;
 
   if (!isEditing) {
     return `
-  <div class="user-row compact-user-row">
-    <div class="user-main-line" style="display:grid; grid-template-columns: 180px 120px 110px 130px 1fr; align-items:center; gap:12px;">
-      <strong>${escapeHtml(user.name || 'Unnamed User')}</strong>
-      <span class="user-role-pill ${roleClass}">${roleLabel(user.role)}</span>
-      <span class="status-pill ${status === 'active' ? 'running' : 'blocked'}">${status === 'active' ? 'Active' : 'Inactive'}</span>
-      <span class="muted user-pin-preview">ID: ${escapeHtml(user.employeeId || user.pin || '—')}</span>
-      <span class="muted user-pin-preview">${user.badgeCode ? `Badge: ${escapeHtml(user.badgeCode)}` : ''}</span>
-    </div>
+      <div class="user-row compact-user-row">
+        <div class="user-main-line" style="display:grid; grid-template-columns: 24px 180px 120px 110px 150px minmax(180px,1fr); align-items:center; gap:12px;">
+          <input type="checkbox" class="user-select" data-user-id="${user.id}" />
+          <strong>${escapeHtml(user.name || 'Unnamed User')}</strong>
+          <span class="user-role-pill ${roleClass}">${roleLabel(user.role)}</span>
+          <span class="status-pill ${status === 'active' ? 'running' : 'blocked'}">${status === 'active' ? 'Active' : 'Inactive'}</span>
+          <span class="muted user-pin-preview">ID: ${escapeHtml(user.employeeId || user.pin || '—')}</span>
+          <span class="muted user-pin-preview">${user.badgeCode ? `Badge: ${escapeHtml(user.badgeCode)}` : 'Badge: —'}</span>
+        </div>
 
-    <div class="user-row-actions">
-  <button data-print-badge="${user.id}" class="button">Print Badge</button>
-  <button data-edit-user="${user.id}" class="button">Edit</button>
-  <button data-delete-user="${user.id}" class="button danger-outline">Delete</button>
-</div>
-  </div>
-`;
-
+        <div class="user-row-actions">
+          <button data-print-badge="${user.id}" class="button">Print Badge</button>
+          <button data-edit-user="${user.id}" class="button">Edit</button>
+          <button data-delete-user="${user.id}" class="button danger-outline">Delete</button>
+        </div>
+      </div>
+    `;
   }
 
   return `
@@ -257,11 +257,10 @@ function renderUserRow(user) {
           <input data-user-pin="${user.id}" value="${escapeAttr(user.employeeId || user.pin || '')}" inputmode="numeric" placeholder="Employee ID" autocomplete="off" />
         </label>
 
-
         <label>
-  <span>Badge Code</span>
-  <input data-user-badge-code="${user.id}" value="${escapeAttr(user.badgeCode || '')}" placeholder="Optional scan code" autocomplete="off" />
-</label>
+          <span>Badge Code</span>
+          <input data-user-badge-code="${user.id}" value="${escapeAttr(user.badgeCode || '')}" placeholder="Optional scan code" autocomplete="off" />
+        </label>
 
         <label>
           <span>Status</span>
@@ -288,7 +287,7 @@ root.querySelector('#downloadUserTemplateBtn')?.addEventListener('click', downlo
 root.querySelector('#refreshUsersBtn')?.addEventListener('click', loadAndRender);
 root.querySelector('#exportUsersBtn')?.addEventListener('click', exportUsersCSV);
 root.querySelector('#printAllBadgesBtn')?.addEventListener('click', printAllBadges);
-
+root.querySelector('#printSelectedBadgesBtn')?.addEventListener('click', printSelectedBadges);
   root.querySelector('#userSearchInput')?.addEventListener('input', (event) => {
   searchText = event.target.value;
   editingUserId = null;
@@ -809,6 +808,17 @@ async function getBadgeBranding() {
 
 async function printAllBadges() {
   const activeUsers = users.filter((user) => statusFor(user) === 'active');
+  if (!activeUsers.length) {
+    alert('No active users to print.');
+    return;
+  }
+
+  await printBadgeSheet(activeUsers);
+}
+
+
+async function printBadgeSheet(activeUsers) {
+  
 
   if (!activeUsers.length) {
     alert('No active users to print.');
@@ -998,5 +1008,20 @@ async function printAllBadges() {
   printWindow.document.close();
 }
 
+async function printSelectedBadges() {
+  const selectedIds = Array.from(
+    root.querySelectorAll('.user-select:checked')
+  ).map(cb => cb.dataset.userId);
 
+  if (!selectedIds.length) {
+    alert('Select at least one user.');
+    return;
+  }
+
+  const selectedUsers = users.filter(u => selectedIds.includes(u.id));
+
+
+
+  await printBadgeSheet(selectedUsers);
+}
 
