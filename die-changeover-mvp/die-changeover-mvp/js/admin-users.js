@@ -807,23 +807,19 @@ async function getBadgeBranding() {
   return fallback;
 }
 
-async function printBadge(userId) {
-  const user = users.find((item) => item.id === userId);
-  if (!user) return;
+async function printAllBadges() {
+  const activeUsers = users.filter((user) => statusFor(user) === 'active');
+
+  if (!activeUsers.length) {
+    alert('No active users to print.');
+    return;
+  }
+
+  if (!confirm(`Print ${activeUsers.length} active user badges on one sheet?`)) return;
 
   const settings = await getBadgeBranding();
   const brandText = settings.brandText || 'Floor Flow';
   const logoUrl = settings.brandingMode === 'logo' ? settings.logoUrl || '' : '';
-
-  const name = escapeHtml(user.name || 'Unnamed');
-  const id = escapeHtml(user.employeeId || user.pin || '');
-  const badgeValueRaw = user.badgeCode || user.employeeId || user.pin || '';
-  const badgeValue = escapeHtml(badgeValueRaw);
-  const role = escapeHtml(roleLabel(user.role));
-
-  const brandHtml = logoUrl
-    ? `<img class="plant-logo" src="${escapeAttr(logoUrl)}" alt="${escapeAttr(brandText)}" onerror="this.style.display='none'; this.parentElement.textContent='${escapeAttr(brandText)}';" />`
-    : escapeHtml(brandText);
 
   const printWindow = window.open('', '_blank');
   if (!printWindow) {
@@ -831,17 +827,55 @@ async function printBadge(userId) {
     return;
   }
 
+  const badgeCards = activeUsers.map((user, index) => {
+    const name = escapeHtml(user.name || 'Unnamed');
+    const id = escapeHtml(user.employeeId || user.pin || '');
+    const role = escapeHtml(roleLabel(user.role));
+    const badgeValueRaw = user.badgeCode || user.employeeId || user.pin || '';
+    const brandHtml = logoUrl
+      ? `<img class="plant-logo" src="${escapeAttr(logoUrl)}" alt="${escapeAttr(brandText)}" onerror="this.style.display='none'; this.parentElement.textContent='${escapeAttr(brandText)}';" />`
+      : escapeHtml(brandText);
+
+    return `
+      <div class="badge">
+        <div class="top-brand">${brandHtml}</div>
+
+        <div>
+          <div class="name">${name}</div>
+          <div class="role">${role}</div>
+          <div class="id">ID: ${id}</div>
+        </div>
+
+        <div class="codes">
+          <svg id="barcode-${index}"></svg>
+          <canvas id="qrcode-${index}"></canvas>
+        </div>
+
+        <div class="footer">Powered by One T Media Group</div>
+      </div>
+    `;
+  }).join('');
+
+  const codeValues = activeUsers.map((user) => user.badgeCode || user.employeeId || user.pin || '');
+
   printWindow.document.write(`
 <html>
 <head>
-<title>Badge</title>
+<title>Badge Sheet</title>
 <style>
-  @page { size: 3.375in 2.125in; margin: 0; }
+  @page { size: letter; margin: 0.35in; }
 
   body {
     margin: 0;
     font-family: Arial, sans-serif;
     background: white;
+  }
+
+  .sheet {
+    display: grid;
+    grid-template-columns: repeat(2, 3.375in);
+    gap: 0.25in;
+    justify-content: center;
   }
 
   .badge {
@@ -854,6 +888,8 @@ async function printBadge(userId) {
     padding: 8px;
     box-sizing: border-box;
     overflow: hidden;
+    break-inside: avoid;
+    page-break-inside: avoid;
   }
 
   .top-brand {
@@ -901,12 +937,12 @@ async function printBadge(userId) {
     min-height: 45px;
   }
 
-  #barcode {
+  svg {
     width: 72%;
     height: 42px;
   }
 
-  #qrcode {
+  canvas {
     width: 42px;
     height: 42px;
   }
@@ -923,51 +959,36 @@ async function printBadge(userId) {
 </head>
 
 <body>
-  <div class="badge">
-    <div class="top-brand">${brandHtml}</div>
-
-    <div>
-      <div class="name">${name}</div>
-      <div class="role">${role}</div>
-      <div class="id">ID: ${id}</div>
-    </div>
-
-    <div class="codes">
-      <svg id="barcode"></svg>
-      <canvas id="qrcode"></canvas>
-    </div>
-
-    <div class="footer">Powered by One T Media Group</div>
+  <div class="sheet">
+    ${badgeCards}
   </div>
 
   <script>
-    const badgeValue = ${JSON.stringify(badgeValueRaw)};
+    const values = ${JSON.stringify(codeValues)};
 
     window.onload = function() {
-      try {
-        JsBarcode("#barcode", badgeValue, {
-          format: "CODE128",
-          displayValue: false,
-          height: 42,
-          margin: 0
-        });
+      values.forEach((value, index) => {
+        try {
+          JsBarcode("#barcode-" + index, value, {
+            format: "CODE128",
+            displayValue: false,
+            height: 42,
+            margin: 0
+          });
 
-        QRCode.toCanvas(document.getElementById("qrcode"), badgeValue, {
-          width: 42,
-          margin: 0
-        });
+          QRCode.toCanvas(document.getElementById("qrcode-" + index), value, {
+            width: 42,
+            margin: 0
+          });
+        } catch (error) {
+          console.error("Badge code failed", error);
+        }
+      });
 
-        setTimeout(() => {
-          window.print();
-          window.close();
-        }, 500);
-      } catch (error) {
-        document.body.insertAdjacentHTML("beforeend", "<p style='font-size:10px;text-align:center;'>Code: " + badgeValue + "</p>");
-        setTimeout(() => {
-          window.print();
-          window.close();
-        }, 500);
-      }
+      setTimeout(() => {
+        window.print();
+        window.close();
+      }, 700);
     };
   <\/script>
 </body>
@@ -976,17 +997,6 @@ async function printBadge(userId) {
 
   printWindow.document.close();
 }
-async function printAllBadges() {
-  const activeUsers = users.filter((user) => statusFor(user) === 'active');
 
-  if (!activeUsers.length) {
-    alert('No active users to print.');
-    return;
-  }
 
-  if (!confirm(`Print ${activeUsers.length} active user badges?`)) return;
 
-  for (const user of activeUsers) {
-    await printBadge(user.id);
-  }
-}
