@@ -32,7 +32,7 @@ export const demoPresses = [
     { partNumber: '', qtyRemaining: 0, status: 'next', notes: '', updatedAt: nowMinus(35) }
   ]},
   { id: 'p59', pressNumber: 59, area: 'Arcur 2', shift: '3', slots: [
-    { partNumber: 'T725005', qtyRemaining: 658, status: 'current', notes: 'Changeover cleared', updatedAt: nowMinus(12) },
+    { partNumber: 'T725005', qtyRemaining: 658, status: 'current', notes: 'Setup cleared', updatedAt: nowMinus(12) },
     { partNumber: 'T728005', qtyRemaining: 147, status: 'current', notes: '', updatedAt: nowMinus(10) },
     { partNumber: 'T681005', qtyRemaining: 77743, status: 'current', notes: '', updatedAt: nowMinus(6) },
     { partNumber: 'T725005', qtyRemaining: 4447, status: 'next', notes: 'Queued next', updatedAt: nowMinus(2) }

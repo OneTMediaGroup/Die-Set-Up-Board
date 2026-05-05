@@ -3,7 +3,8 @@ import {
   collection,
   addDoc,
   deleteDoc,
-  doc
+  doc,
+  getDoc
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
 import { fetchUsersFromFirestore, updateUserInFirestore } from './firestore-users.js';
@@ -19,7 +20,7 @@ let roleFilter = 'all';
 
 const ROLES = [
   { value: 'operator', label: 'Operator' },
-  { value: 'dieSetter', label: 'Auth Personal' },
+  { value: 'dieSetter', label: 'Authorized Staff' },
   { value: 'supervisor', label: 'Supervisor' },
   { value: 'admin', label: 'Admin' }
 ];
@@ -251,8 +252,8 @@ function renderUserRow(user) {
         </label>
 
         <label>
-          <span>PIN</span>
-          <input data-user-pin="${user.id}" value="${escapeAttr(user.pin || '')}" inputmode="numeric" placeholder="PIN" autocomplete="new-password" />
+          <span>Employee ID</span>
+          <input data-user-pin="${user.id}" value="${escapeAttr(user.employeeId || user.pin || '')}" inputmode="numeric" placeholder="Employee ID" autocomplete="off" />
         </label>
 
 
@@ -425,10 +426,10 @@ async function handleImportUsers() {
       return;
     }
 
-    const existingPins = new Set(users.map((user) => String(user.employeeId || user.pin || '').trim()).filter(Boolean));
+    const existingEmployeeIds = new Set(users.map((user) => String(user.employeeId || user.pin || '').trim()).filter(Boolean));
     const existingBadges = new Set(users.map((user) => String(user.badgeCode || '').trim()).filter(Boolean));
 
-    const incomingPins = new Set();
+    const incomingEmployeeIds = new Set();
     const incomingBadges = new Set();
 
     let imported = 0;
@@ -438,15 +439,21 @@ async function handleImportUsers() {
     for (const row of rows) {
       const user = normalizeImportRow(row);
 
-      if (!user.name || !user.pin) {
+      if (!user.name) {
         skipped += 1;
-        errors.push(`Skipped row: missing name or PIN.`);
+        errors.push('Skipped row: missing name.');
         continue;
       }
 
-      if (existingPins.has(user.pin) || incomingPins.has(user.pin)) {
+      if (!user.employeeId && !user.badgeCode) {
         skipped += 1;
-        errors.push(`Skipped ${user.name}: duplicate PIN ${user.pin}.`);
+        errors.push(`Skipped ${user.name}: missing Employee ID or Badge Code.`);
+        continue;
+      }
+
+      if (user.employeeId && (existingEmployeeIds.has(user.employeeId) || incomingEmployeeIds.has(user.employeeId))) {
+        skipped += 1;
+        errors.push(`Skipped ${user.name}: duplicate Employee ID ${user.employeeId}.`);
         continue;
       }
 
@@ -456,13 +463,13 @@ async function handleImportUsers() {
         continue;
       }
 
-      incomingPins.add(user.pin);
+      if (user.employeeId) incomingEmployeeIds.add(user.employeeId);
       if (user.badgeCode) incomingBadges.add(user.badgeCode);
 
       await addDoc(collection(db, 'users'), {
         name: user.name,
-       employeeId: user.employeeId || user.pin,
-        pin: user.pin,
+        employeeId: user.employeeId,
+        pin: user.employeeId,
         badgeCode: user.badgeCode,
         role: user.role,
         status: user.status,
@@ -588,7 +595,19 @@ function normalizeImportRow(row) {
   const normalizedRole = normalizeRole(rawRole);
   const rawStatus = String(row.status || row.Status || 'active').trim();
 
-  const pin = String(row.pin || row.PIN || row.employeeId || row.EmployeeID || row.employeeID || '').trim();
+  const employeeId = String(
+    row.employeeId ||
+    row.EmployeeID ||
+    row.employeeID ||
+    row.employee_id ||
+    row.clockNumber ||
+    row.ClockNumber ||
+    row.clock ||
+    row.Clock ||
+    row.pin ||
+    row.PIN ||
+    ''
+  ).trim();
 
   const badgeCode = String(
     row.badgeCode ||
@@ -608,13 +627,12 @@ function normalizeImportRow(row) {
   const name = fullName || [firstName, lastName].filter(Boolean).join(' ').trim();
 
   return {
-  name,
-  pin,
-  employeeId: String(row.employeeId || '').trim(),
-  badgeCode,
-  role: normalizedRole,
-  status: normalizeStatus(rawStatus)
-};
+    name,
+    employeeId,
+    badgeCode,
+    role: normalizedRole,
+    status: normalizeStatus(rawStatus)
+  };
 }
 
 function normalizeRole(value) {
@@ -743,13 +761,13 @@ function exportUsersCSV() {
     return;
   }
 
-  const headers = ['name', 'employeeId', 'role', 'pin', 'badgeCode', 'status'];
+  const headers = ['name', 'role', 'employeeId', 'badgeCode', 'status'];
 
   const rows = users.map(u => [
     u.name || '',
-    u.employeeId || '',
     u.role || '',
-    u.pin || '',
+    u.employeeId || u.pin || '',
+    u.badgeCode || '',
     statusFor(u)
   ]);
 
@@ -767,26 +785,58 @@ function exportUsersCSV() {
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 }
 
-function printBadge(userId) {
+async function getBadgeBranding() {
+  const fallback = {
+    brandingMode: 'text',
+    brandText: 'Floor Flow',
+    logoUrl: ''
+  };
+
+  try {
+    const snap = await getDoc(doc(db, 'system', 'settings'));
+    if (snap.exists()) return { ...fallback, ...snap.data() };
+  } catch (error) {
+    console.error('Badge branding load failed:', error);
+  }
+
+  return fallback;
+}
+
+async function printBadge(userId) {
   const user = users.find(u => u.id === userId);
   if (!user) return;
 
-  const name = user.name || 'Unnamed';
-  const id = user.employeeId || user.pin || '';
-  const badge = user.badgeCode || '';
+  const settings = await getBadgeBranding();
+  const brandText = settings.brandText || 'Floor Flow';
+  const logoUrl = settings.brandingMode === 'logo' ? settings.logoUrl || '' : '';
+
+  const name = escapeHtml(user.name || 'Unnamed');
+  const id = escapeHtml(user.employeeId || user.pin || '');
+  const badge = escapeHtml(user.badgeCode || user.employeeId || user.pin || '');
+  const brandHtml = logoUrl
+    ? `<img class="plant-logo" src="${escapeAttr(logoUrl)}" alt="${escapeAttr(brandText)}" onerror="this.style.display='none'; this.parentElement.textContent='${escapeAttr(brandText)}';" />`
+    : escapeHtml(brandText);
 
   const printWindow = window.open('', '_blank');
+  if (!printWindow) {
+    alert('Popup blocked. Allow popups to print badges.');
+    return;
+  }
 
   printWindow.document.write(`
 <html>
 <head>
 <title>Badge</title>
 <style>
+  @page { size: 3.375in 2.125in; margin: 0; }
+
   body {
     margin: 0;
     font-family: Arial, sans-serif;
+    background: white;
   }
 
   .badge {
@@ -798,35 +848,58 @@ function printBadge(userId) {
     justify-content: space-between;
     padding: 10px;
     box-sizing: border-box;
+    overflow: hidden;
   }
 
-  .top {
-    font-size: 14px;
-    font-weight: bold;
+  .top-brand {
+    height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 900;
+    font-size: 18px;
     text-align: center;
+  }
+
+  .plant-logo {
+    max-height: 30px;
+    max-width: 185px;
+    object-fit: contain;
   }
 
   .name {
     font-size: 20px;
     font-weight: bold;
     text-align: center;
+    line-height: 1.05;
+  }
+
+  .role {
+    font-size: 11px;
+    text-align: center;
+    margin-top: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
   }
 
   .id {
     font-size: 14px;
     text-align: center;
+    margin-top: 4px;
   }
 
   .barcode {
     font-size: 12px;
     text-align: center;
     word-break: break-all;
+    font-family: Arial, sans-serif;
+    padding: 0 6px;
   }
 
   .footer {
-    font-size: 10px;
+    font-size: 9px;
     text-align: center;
-    opacity: 0.6;
+    opacity: 0.55;
   }
 
   @media print {
@@ -837,28 +910,17 @@ function printBadge(userId) {
 
 <body>
   <div class="badge">
+    <div class="top-brand">${brandHtml}</div>
 
-    <!-- TOP = CLIENT BRAND -->
-    <div class="top">
-      COMPANY NAME
-    </div>
-
-    <!-- CENTER -->
     <div>
       <div class="name">${name}</div>
+      <div class="role">${escapeHtml(roleLabel(user.role))}</div>
       <div class="id">ID: ${id}</div>
     </div>
 
-    <!-- BARCODE / CODE -->
-    <div class="barcode">
-      ${badge || id}
-    </div>
+    <div class="barcode">${badge}</div>
 
-    <!-- BOTTOM = YOUR SYSTEM -->
-    <div class="footer">
-      Powered by One T Media Group
-    </div>
-
+    <div class="footer">Powered by One T Media Group</div>
   </div>
 
   <script>
@@ -867,7 +929,6 @@ function printBadge(userId) {
       window.close();
     }
   <\/script>
-
 </body>
 </html>
 `);

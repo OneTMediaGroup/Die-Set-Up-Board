@@ -60,7 +60,7 @@ async function loadDieSetters() {
 
     renderDieSetterOptions();
   } catch (error) {
-    console.error('❌ Failed to load Auth Personal:', error);
+    console.error('❌ Failed to load Authorized Staff:', error);
     dieSetters = [];
     renderDieSetterOptions();
   }
@@ -87,7 +87,7 @@ function ensureLoginModal() {
     <div id="dieSetterLoginModal" class="modal hidden">
       <div class="modal-content">
         <h3>Complete + Shift</h3>
-        <p class="muted" style="margin-bottom:14px;">Confirm who completed this changeover.</p>
+        <p class="muted" style="margin-bottom:14px;">Confirm who completed this task.</p>
 
         <label class="muted">User</label>
         <select id="dieSetterLoginUser" style="margin-top:6px; width:100%;"></select>

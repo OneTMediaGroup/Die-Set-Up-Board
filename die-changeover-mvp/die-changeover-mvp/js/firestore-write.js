@@ -92,7 +92,7 @@ function buildLogMessage({ pressId, slotIndex, setup, previousSetup }) {
 
   if (previousStatus !== newStatus) {
     if (newStatus === 'blocked') return `Blocked ${pressCode} ${slotText} · ${setup.partNumber} · ${setup.notes || 'No reason added'}`;
-    if (newStatus === 'ready') return `Ready for changeover ${pressCode} ${slotText} · ${setup.partNumber}`;
+    if (newStatus === 'ready') return `Ready for next step ${pressCode} ${slotText} · ${setup.partNumber}`;
     return `Updated status ${pressCode} ${slotText} · ${setup.partNumber} · ${statusLabel(newStatus)}`;
   }
 

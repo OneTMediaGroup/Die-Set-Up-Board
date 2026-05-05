@@ -1,54 +1,41 @@
+# Floor Flow
 
-
-
+Floor Flow is a browser-based plant floor scheduling and verification platform. It is built for live floor boards, supervisor queue control, admin setup, user access, and scan-ready operator flows.
 
 ## Included
 
 - `index.html` - landing page
-- `board.html` - Floor Board touchscreen board
-- `supervisor.html` - supervisor scheduling/editing screen
+- `board.html` - floor console / touchscreen board
+- `supervisor.html` - supervisor scheduling and queue control screen
 - `admin.html` - admin / maintenance screen
+- `display.html` - read-only plant display board
 - `css/styles.css` - shared styling
-- `js/*.js` - local demo data store and Firebase-ready starter scaffold
+- `js/*.js` - Firebase-ready application logic
 
-## How it works right now
+## Core screens
 
-This starter runs in **demo mode** using browser `localStorage`, so you can test it immediately on GitHub Pages without any backend.
+- Floor Console: mark work ready, complete work, view notes, and advance the queue.
+- Supervisor View: plan and edit the current / next queue.
+- Display Board: read-only live plant screen.
+- Admin / Maintenance: manage equipment, areas, users, branding, activity logs, and system controls.
 
-## Quick start
-
-1. Upload the folder to a GitHub repo.
-2. Enable GitHub Pages.
-3. Open `index.html`.
-4. Use the app in demo mode.
-
-## Firebase upgrade path
-
-When you are ready:
-
-1. Create a Firebase project.
-2. Turn on Authentication.
-3. Turn on Firestore.
-4. Add your config to `js/firebase-config.js`.
-5. Replace the localStorage functions in `js/store.js` with Firestore reads/writes.
-
-## Suggested Firebase collections
+## Firebase collections in use
 
 - `users`
 - `presses`
-- `changeovers`
-- `auditLogs`
-- `statusTypes`
+- `logs`
+- `system`
 
-## Suggested roles
+## Roles
 
-- `dieSetter`
+- `operator`
+- `dieSetter` - internal role key for authorized floor staff
 - `supervisor`
-- `maintenance`
 - `admin`
 
 ## Notes
 
-- This MVP is designed to preserve the look and workflow of your current floor board.
-- Buttons and spacing are intentionally oversized for touch screen use.
-- This version is manual-first and can later connect to MES / ERP data.
+- Branding is configurable through Admin > System Controls.
+- User import supports Employee ID and optional Badge Code fields.
+- Badge printing uses the saved system branding when available.
+- Browser sessions are designed for shared machine use with logout and session timeout behavior.
