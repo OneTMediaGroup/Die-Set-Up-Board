@@ -815,7 +815,8 @@ async function printBadge(userId) {
 
   const name = escapeHtml(user.name || 'Unnamed');
   const id = escapeHtml(user.employeeId || user.pin || '');
-  const badge = escapeHtml(user.badgeCode || user.employeeId || user.pin || '');
+  const badgeValueRaw = user.badgeCode || user.employeeId || user.pin || '';
+  const badgeValue = escapeHtml(badgeValueRaw);
   const role = escapeHtml(roleLabel(user.role));
 
   const brandHtml = logoUrl
@@ -848,61 +849,75 @@ async function printBadge(userId) {
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    padding: 10px;
+    padding: 8px;
     box-sizing: border-box;
     overflow: hidden;
   }
 
   .top-brand {
-    height: 34px;
+    height: 30px;
     display: flex;
     align-items: center;
     justify-content: center;
     font-weight: 900;
-    font-size: 18px;
+    font-size: 17px;
     text-align: center;
   }
 
   .plant-logo {
-    max-height: 30px;
+    max-height: 28px;
     max-width: 185px;
     object-fit: contain;
   }
 
   .name {
-    font-size: 20px;
+    font-size: 19px;
     font-weight: bold;
     text-align: center;
     line-height: 1.05;
   }
 
   .role {
-    font-size: 11px;
+    font-size: 10px;
     text-align: center;
-    margin-top: 3px;
+    margin-top: 2px;
     text-transform: uppercase;
     letter-spacing: 0.08em;
   }
 
   .id {
-    font-size: 14px;
+    font-size: 13px;
     text-align: center;
-    margin-top: 4px;
+    margin-top: 3px;
   }
 
-  .barcode {
-    font-size: 12px;
-    text-align: center;
-    word-break: break-all;
-    padding: 0 6px;
+  .codes {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-height: 45px;
+  }
+
+  #barcode {
+    width: 72%;
+    height: 42px;
+  }
+
+  #qrcode {
+    width: 42px;
+    height: 42px;
   }
 
   .footer {
-    font-size: 9px;
+    font-size: 8px;
     text-align: center;
     opacity: 0.55;
   }
 </style>
+
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
 </head>
 
 <body>
@@ -915,16 +930,43 @@ async function printBadge(userId) {
       <div class="id">ID: ${id}</div>
     </div>
 
-    <div class="barcode">${badge}</div>
+    <div class="codes">
+      <svg id="barcode"></svg>
+      <canvas id="qrcode"></canvas>
+    </div>
 
     <div class="footer">Powered by One T Media Group</div>
   </div>
 
   <script>
+    const badgeValue = ${JSON.stringify(badgeValueRaw)};
+
     window.onload = function() {
-      window.print();
-      window.close();
-    }
+      try {
+        JsBarcode("#barcode", badgeValue, {
+          format: "CODE128",
+          displayValue: false,
+          height: 42,
+          margin: 0
+        });
+
+        QRCode.toCanvas(document.getElementById("qrcode"), badgeValue, {
+          width: 42,
+          margin: 0
+        });
+
+        setTimeout(() => {
+          window.print();
+          window.close();
+        }, 500);
+      } catch (error) {
+        document.body.insertAdjacentHTML("beforeend", "<p style='font-size:10px;text-align:center;'>Code: " + badgeValue + "</p>");
+        setTimeout(() => {
+          window.print();
+          window.close();
+        }, 500);
+      }
+    };
   <\/script>
 </body>
 </html>
