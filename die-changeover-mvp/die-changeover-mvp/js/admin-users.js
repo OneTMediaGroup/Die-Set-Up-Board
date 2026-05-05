@@ -181,7 +181,8 @@ function render() {
         </div>
         <div style="display:flex; gap:8px;">
   <button id="refreshUsersBtn" class="button">Refresh</button>
-  <button id="exportUsersBtn" class="button">Export CSV</button>
+<button id="exportUsersBtn" class="button">Export CSV</button>
+<button id="printAllBadgesBtn" class="button primary">Print Badges</button>
 </div>
       </div>
 
@@ -286,6 +287,7 @@ root.querySelector('#importUsersBtn')?.addEventListener('click', handleImportUse
 root.querySelector('#downloadUserTemplateBtn')?.addEventListener('click', downloadUserTemplateCsv);
 root.querySelector('#refreshUsersBtn')?.addEventListener('click', loadAndRender);
 root.querySelector('#exportUsersBtn')?.addEventListener('click', exportUsersCSV);
+root.querySelector('#printAllBadgesBtn')?.addEventListener('click', printAllBadges);
 
   root.querySelector('#userSearchInput')?.addEventListener('input', (event) => {
   searchText = event.target.value;
@@ -973,4 +975,18 @@ async function printBadge(userId) {
 `);
 
   printWindow.document.close();
+}
+async function printAllBadges() {
+  const activeUsers = users.filter((user) => statusFor(user) === 'active');
+
+  if (!activeUsers.length) {
+    alert('No active users to print.');
+    return;
+  }
+
+  if (!confirm(`Print ${activeUsers.length} active user badges?`)) return;
+
+  for (const user of activeUsers) {
+    await printBadge(user.id);
+  }
 }
