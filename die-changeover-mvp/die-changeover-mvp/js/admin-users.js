@@ -806,7 +806,7 @@ async function getBadgeBranding() {
 }
 
 async function printBadge(userId) {
-  const user = users.find(u => u.id === userId);
+  const user = users.find((item) => item.id === userId);
   if (!user) return;
 
   const settings = await getBadgeBranding();
@@ -816,6 +816,8 @@ async function printBadge(userId) {
   const name = escapeHtml(user.name || 'Unnamed');
   const id = escapeHtml(user.employeeId || user.pin || '');
   const badge = escapeHtml(user.badgeCode || user.employeeId || user.pin || '');
+  const role = escapeHtml(roleLabel(user.role));
+
   const brandHtml = logoUrl
     ? `<img class="plant-logo" src="${escapeAttr(logoUrl)}" alt="${escapeAttr(brandText)}" onerror="this.style.display='none'; this.parentElement.textContent='${escapeAttr(brandText)}';" />`
     : escapeHtml(brandText);
@@ -892,7 +894,6 @@ async function printBadge(userId) {
     font-size: 12px;
     text-align: center;
     word-break: break-all;
-    font-family: Arial, sans-serif;
     padding: 0 6px;
   }
 
@@ -900,10 +901,6 @@ async function printBadge(userId) {
     font-size: 9px;
     text-align: center;
     opacity: 0.55;
-  }
-
-  @media print {
-    body { margin: 0; }
   }
 </style>
 </head>
@@ -914,7 +911,7 @@ async function printBadge(userId) {
 
     <div>
       <div class="name">${name}</div>
-      <div class="role">${escapeHtml(roleLabel(user.role))}</div>
+      <div class="role">${role}</div>
       <div class="id">ID: ${id}</div>
     </div>
 
