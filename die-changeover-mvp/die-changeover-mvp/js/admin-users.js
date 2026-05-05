@@ -212,13 +212,18 @@ function renderUserRow(user) {
   if (!isEditing) {
     return `
       <div class="user-row compact-user-row">
-        <div class="user-main-line" style="display:grid; grid-template-columns: 24px 180px 120px 110px 150px minmax(180px,1fr); align-items:center; gap:12px;">
+        <div class="user-main-line" style="display:grid; grid-template-columns: 28px minmax(180px, 1fr) 130px 120px; align-items:center; gap:14px;">
           <input type="checkbox" class="user-select" data-user-id="${user.id}" />
-          <strong>${escapeHtml(user.name || 'Unnamed User')}</strong>
+
+          <strong title="ID: ${escapeHtml(user.employeeId || '—')} | Badge: ${escapeHtml(user.badgeCode || '—')}">
+            ${escapeHtml(user.name || 'Unnamed User')}
+          </strong>
+
           <span class="user-role-pill ${roleClass}">${roleLabel(user.role)}</span>
-          <span class="status-pill ${status === 'active' ? 'running' : 'blocked'}">${status === 'active' ? 'Active' : 'Inactive'}</span>
-          <span class="muted user-pin-preview">ID: ${escapeHtml(user.employeeId || user.pin || '—')}</span>
-          <span class="muted user-pin-preview">${user.badgeCode ? `Badge: ${escapeHtml(user.badgeCode)}` : 'Badge: —'}</span>
+
+          <span class="status-pill ${status === 'active' ? 'running' : 'blocked'}">
+            ${status === 'active' ? 'Active' : 'Inactive'}
+          </span>
         </div>
 
         <div class="user-row-actions">
@@ -230,6 +235,7 @@ function renderUserRow(user) {
     `;
   }
 
+  // ✅ KEEP EDIT MODE
   return `
     <div class="user-row user-edit-row">
       <div class="section-header">
@@ -242,24 +248,24 @@ function renderUserRow(user) {
       <div class="user-edit-grid">
         <label>
           <span>Name</span>
-          <input data-user-name="${user.id}" value="${escapeAttr(user.name || '')}" placeholder="Name" />
+          <input data-user-name="${user.id}" value="${escapeAttr(user.name || '')}" />
         </label>
 
         <label>
           <span>Role</span>
           <select data-user-role="${user.id}">
-            ${ROLES.map((role) => `<option value="${role.value}" ${user.role === role.value ? 'selected' : ''}>${role.label}</option>`).join('')}
+            ${ROLES.map(r => `<option value="${r.value}" ${user.role === r.value ? 'selected' : ''}>${r.label}</option>`).join('')}
           </select>
         </label>
 
         <label>
           <span>Employee ID</span>
-          <input data-user-pin="${user.id}" value="${escapeAttr(user.employeeId || user.pin || '')}" inputmode="numeric" placeholder="Employee ID" autocomplete="off" />
+          <input data-user-pin="${user.id}" value="${escapeAttr(user.employeeId || '')}" />
         </label>
 
         <label>
           <span>Badge Code</span>
-          <input data-user-badge-code="${user.id}" value="${escapeAttr(user.badgeCode || '')}" placeholder="Optional scan code" autocomplete="off" />
+          <input data-user-badge-code="${user.id}" value="${escapeAttr(user.badgeCode || '')}" />
         </label>
 
         <label>
