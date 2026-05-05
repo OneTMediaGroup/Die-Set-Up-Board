@@ -309,6 +309,11 @@ selectAll?.addEventListener('change', () => {
 
 root.querySelectorAll('.user-select').forEach((checkbox) => {
   checkbox.addEventListener('change', () => {
+    const row = checkbox.closest('.user-row');
+    if (row) {
+      row.classList.toggle('selected', checkbox.checked);
+    }
+
     const all = root.querySelectorAll('.user-select');
     const checked = root.querySelectorAll('.user-select:checked');
     const selectAllBox = root.querySelector('#selectAllUsers');
@@ -319,6 +324,8 @@ root.querySelectorAll('.user-select').forEach((checkbox) => {
     selectAllBox.indeterminate = checked.length > 0 && checked.length < all.length;
   });
 });
+
+
   root.querySelector('#userSearchInput')?.addEventListener('input', (event) => {
   searchText = event.target.value;
   editingUserId = null;

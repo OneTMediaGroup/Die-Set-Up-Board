@@ -1969,3 +1969,9 @@ input, textarea, select {
   max-width: 180px;
   object-fit: contain;
 }
+
+
+.user-row.selected {
+  background: rgba(0, 120, 255, 0.08);
+  border-left: 4px solid #0078ff;
+}
