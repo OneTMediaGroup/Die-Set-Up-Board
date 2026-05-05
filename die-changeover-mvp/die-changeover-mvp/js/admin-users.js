@@ -179,11 +179,16 @@ function render() {
           <h2>User List</h2>
           <div class="muted">Single-line rows. Click Edit only when you need to change details or reset a PIN.</div>
         </div>
-        <div style="display:flex; gap:8px;">
+        <div style="display:flex; gap:8px; align-items:center;">
+  <label style="display:flex; align-items:center; gap:6px; font-size:13px;">
+    <input type="checkbox" id="selectAllUsers" />
+    Select All
+  </label>
+
   <button id="refreshUsersBtn" class="button">Refresh</button>
-<button id="exportUsersBtn" class="button">Export CSV</button>
-<button id="printSelectedBadgesBtn" class="button primary">Print Selected</button>
-<button id="printAllBadgesBtn" class="button">Print All</button>
+  <button id="exportUsersBtn" class="button">Export CSV</button>
+  <button id="printSelectedBadgesBtn" class="button primary">Print Selected</button>
+  <button id="printAllBadgesBtn" class="button">Print All</button>
 </div>
       </div>
 
@@ -294,6 +299,26 @@ root.querySelector('#refreshUsersBtn')?.addEventListener('click', loadAndRender)
 root.querySelector('#exportUsersBtn')?.addEventListener('click', exportUsersCSV);
 root.querySelector('#printAllBadgesBtn')?.addEventListener('click', printAllBadges);
 root.querySelector('#printSelectedBadgesBtn')?.addEventListener('click', printSelectedBadges);
+const selectAll = root.querySelector('#selectAllUsers');
+
+selectAll?.addEventListener('change', () => {
+  root.querySelectorAll('.user-select').forEach((checkbox) => {
+    checkbox.checked = selectAll.checked;
+  });
+});
+
+root.querySelectorAll('.user-select').forEach((checkbox) => {
+  checkbox.addEventListener('change', () => {
+    const all = root.querySelectorAll('.user-select');
+    const checked = root.querySelectorAll('.user-select:checked');
+    const selectAllBox = root.querySelector('#selectAllUsers');
+
+    if (!selectAllBox) return;
+
+    selectAllBox.checked = all.length > 0 && checked.length === all.length;
+    selectAllBox.indeterminate = checked.length > 0 && checked.length < all.length;
+  });
+});
   root.querySelector('#userSearchInput')?.addEventListener('input', (event) => {
   searchText = event.target.value;
   editingUserId = null;
@@ -332,6 +357,8 @@ root.querySelector('#printSelectedBadgesBtn')?.addEventListener('click', printSe
     printBadge(button.dataset.printBadge);
   });
 });
+
+
 
   root.querySelectorAll('[data-save-user]').forEach((button) => {
     button.addEventListener('click', async () => {
